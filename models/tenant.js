@@ -63,6 +63,7 @@ module.exports = (sequelize, DataTypes) => {
     Tenant.hasMany(models.RoutingRule, { foreignKey: 'tenantId' });
     Tenant.hasMany(models.UserInvite, { foreignKey: 'tenantId' });
     Tenant.hasMany(models.Enquiry, { foreignKey: 'tenantId' });
+    Tenant.hasMany(models.InboundMessage, { foreignKey: 'clientId', as: 'inboundMessages' });
   };
 
   return Tenant;

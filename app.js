@@ -72,42 +72,75 @@
 
 // module.exports = app;
 const express = require('express');
+const cors = require('cors');
+
+const testRoutes = require('./routes/testRoutes');
+const authRoutes = require('./routes/authRoutes');
+const publicAgencyRoutes = require('./routes/publicAgencyRoutes');
+const agencyRoutes = require('./routes/agencyRoutes');
+const inboundMessageRoutes = require('./routes/inboundMessageRoutes');
+const whatsappRoutes = require('./routes/whatsappRoutes');
+
 const app = express();
 
-const {
-  connectDatabase,
-  getSequelize,
-} = require('./config/db.config');
+app.use(
+  cors({
+    origin: ['https://enquiry-system-mu.vercel.app', 'http://localhost:3000', 'http://127.0.0.1:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-WhatsApp-Signature'],
+  }),
+);
 
-const router = express.Router();
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-router.get('/db', async (req, res) => {
-  try {
-    await connectDatabase();
+app.get('/', (req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: 'Enquiry API is running',
+  });
+});
 
-    const sequelize = getSequelize();
+app.get('/health', (req, res) => {
+  return res.status(200).json({
+    success: true,
+    status: 'ok',
+  });
+});
 
-    const [rows] = await sequelize.query(
-      'SELECT 1 AS connected'
-    );
+// Test routes
+app.use('/test', testRoutes);
+app.use('/inbound-messages', inboundMessageRoutes);
+app.use('/whatsapp', whatsappRoutes);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Database connected successfully',
-      data: rows,
-    });
-  } catch (error) {
-    console.error('DB connection error:', error);
+// Auth routes
+app.use('/api/auth', authRoutes);
 
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-      code:
-        error?.original?.code ||
-        error?.parent?.code ||
-        error.name,
-    });
-  }
+// Public agency routes
+app.use('/api', publicAgencyRoutes);
+
+// Protected/agency routes
+app.use('/api', agencyRoutes);
+
+// Optional backend aliases
+app.use('/api/backend', publicAgencyRoutes);
+app.use('/api/backend', agencyRoutes);
+
+app.use((req, res) => {
+  return res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
+});
+
+app.use((err, req, res, next) => {
+  console.error('Application error:', err);
+
+  return res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Server error',
+  });
 });
 
 module.exports = app;

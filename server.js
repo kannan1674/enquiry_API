@@ -23,9 +23,17 @@ require('dotenv').config({
 });
 
 const app = require('./app');
+const { connectDatabase } = require('./config/db.config');
 
 const PORT = Number(process.env.PORT) || 4000;
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Enquiry System API running on port ${PORT}`);
-});
+connectDatabase()
+  .then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Enquiry System API running on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Failed to start server', error);
+    process.exit(1);
+  });

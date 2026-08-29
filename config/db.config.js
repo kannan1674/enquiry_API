@@ -72,6 +72,8 @@ async function connectDatabase() {
   const db = getSequelize();
 
   await db.authenticate();
+  const { InboundMessage } = require('../models');
+  await InboundMessage.sync();
 
   console.log('Database connected successfully');
 

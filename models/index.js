@@ -14,6 +14,7 @@ const UserInvite = require('./userInvite')(sequelize, DataTypes);
 const QuarantinedInboundEvent = require('./quarantinedInboundEvent')(sequelize, DataTypes);
 const Enquiry = require('./enquiry')(sequelize, DataTypes);
 const UserMetaConnection = require('./userMetaConnection')(sequelize, DataTypes);
+const InboundMessage = require('./inboundMessage')(sequelize, DataTypes);
 
 const models = {
   Tenant,
@@ -27,6 +28,7 @@ const models = {
   QuarantinedInboundEvent,
   Enquiry,
   UserMetaConnection,
+  InboundMessage,
 };
 
 Object.values(models).forEach((model) => {
