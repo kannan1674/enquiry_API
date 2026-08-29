@@ -65,8 +65,11 @@ export async function connectDatabase() {
   const db = getSequelize();
 
   await db.authenticate();
-  const { InboundMessage } = await import('../models/index.js');
-  await InboundMessage.sync();
+
+  if (!process.env.VERCEL) {
+    const { InboundMessage } = await import('../models/index.js');
+    await InboundMessage.sync();
+  }
 
   console.log('Database connected successfully');
 
