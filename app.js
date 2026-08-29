@@ -72,52 +72,42 @@
 
 // module.exports = app;
 const express = require('express');
-const cors = require('cors');
-
-const testRoutes = require('./routes/testRoutes');
-
 const app = express();
 
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-  })
-);
+const {
+  connectDatabase,
+  getSequelize,
+} = require('./config/db.config');
 
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true }));
+const router = express.Router();
 
-app.get('/', (req, res) => {
-  return res.status(200).json({
-    success: true,
-    message: 'Enquiry API is running',
-  });
-});
+router.get('/db', async (req, res) => {
+  try {
+    await connectDatabase();
 
-app.get('/health', (req, res) => {
-  return res.status(200).json({
-    success: true,
-    status: 'ok',
-  });
-});
+    const sequelize = getSequelize();
 
-app.use('/test', testRoutes);
+    const [rows] = await sequelize.query(
+      'SELECT 1 AS connected'
+    );
 
-app.use((req, res) => {
-  return res.status(404).json({
-    success: false,
-    message: `Route not found: ${req.method} ${req.originalUrl}`,
-  });
-});
+    return res.status(200).json({
+      success: true,
+      message: 'Database connected successfully',
+      data: rows,
+    });
+  } catch (error) {
+    console.error('DB connection error:', error);
 
-app.use((err, req, res, next) => {
-  console.error('Application error:', err);
-
-  return res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Server error',
-  });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      code:
+        error?.original?.code ||
+        error?.parent?.code ||
+        error.name,
+    });
+  }
 });
 
 module.exports = app;

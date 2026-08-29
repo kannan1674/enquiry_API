@@ -11,7 +11,7 @@ function getSequelize() {
   }
 
   const host = process.env.DB_HOST;
-  const port = Number(process.env.DB_PORT || 12862);
+  const port = Number(process.env.DB_PORT || 3306);
   const username = process.env.DB_USER;
   const password = process.env.DB_PASSWORD;
   const database = process.env.DB_NAME;
@@ -39,9 +39,7 @@ function getSequelize() {
     {
       host,
       port,
-
       dialect: 'mysql',
-
       logging: false,
 
       dialectOptions: {
@@ -71,13 +69,13 @@ function getSequelize() {
 }
 
 async function connectDatabase() {
-  const sequelize = getSequelize();
+  const db = getSequelize();
 
-  await sequelize.authenticate();
+  await db.authenticate();
 
   console.log('Database connected successfully');
 
-  return sequelize;
+  return db;
 }
 
 async function testDatabaseConnection() {
@@ -86,11 +84,10 @@ async function testDatabaseConnection() {
 
 function getDbSettings() {
   return {
-    host: String(process.env.DB_HOST || '').trim(),
-    port: Number(process.env.DB_PORT || 12862),
-    user: String(process.env.DB_USER || '').trim(),
-    password: process.env.DB_PASSWORD || '',
-    database: String(process.env.DB_NAME || '').trim(),
+    host: process.env.DB_HOST || '',
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER || '',
+    database: process.env.DB_NAME || '',
   };
 }
 
