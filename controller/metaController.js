@@ -206,47 +206,43 @@ export async function getConnectUrl(req, res, next) {
 }
 
 export async function callback(req, res) {
-  const returnToFallback = '/connections';
   try {
-    await loadMetaSettings();
-    if (req.query.error) {
-      return redirectWith(res, returnToFallback, {
-        meta: 'error',
-        message: req.query.error_description || req.query.error,
-      });
-    }
-
     const { code, state } = req.query;
-    if (!code || !state) {
-      return redirectWith(res, returnToFallback, {
-        meta: 'error',
-        message: 'Facebook login did not return a code',
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Authorization code missing',
       });
     }
 
-    const payload = jwt.verify(state, process.env.JWT_SECRET);
-    if (payload.purpose !== 'meta_oauth' || !payload.userId || !payload.tenantId) {
-      return redirectWith(res, returnToFallback, {
-        meta: 'error',
-        message: 'Facebook login state is invalid',
-      });
-    }
+    await loadMetaSettings();
 
     const token = await exchangeCodeForToken(String(code));
-    await saveConnectionAndImport({
-      userId: payload.userId,
-      tenantId: payload.tenantId,
-      accessToken: token.access_token,
-      expiresIn: token.expires_in,
-    });
 
-    return redirectWith(res, payload.returnTo || returnToFallback, {
-      meta: 'connected',
-    });
+    if (state) {
+      const payload = jwt.verify(String(state), process.env.JWT_SECRET);
+      if (payload.purpose === 'meta_oauth' && payload.userId && payload.tenantId) {
+        await saveConnectionAndImport({
+          userId: payload.userId,
+          tenantId: payload.tenantId,
+          accessToken: token.access_token,
+          expiresIn: token.expires_in,
+        });
+
+        return redirectWith(res, payload.returnTo || '/connections', {
+          meta: 'connected',
+        });
+      }
+    }
+
+    return res.redirect(`${frontendUrl()}/connections`);
   } catch (error) {
-    return redirectWith(res, returnToFallback, {
-      meta: 'error',
-      message: error.message || 'Facebook login failed',
+    console.error('Meta callback error:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Meta authentication failed',
     });
   }
 }

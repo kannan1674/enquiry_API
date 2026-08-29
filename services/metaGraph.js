@@ -1,7 +1,11 @@
 import { graphConfigured, metaSettings } from './metaSettings.js';
 
 function graphVersion() {
-  return metaSettings().graphVersion || process.env.META_GRAPH_VERSION || 'v21.0';
+  const raw = String(
+    metaSettings().graphVersion || process.env.META_GRAPH_VERSION || 'v21.0',
+  ).trim();
+  const match = raw.match(/v\d+\.\d+/i);
+  return match ? match[0] : 'v21.0';
 }
 
 function graphBase() {
@@ -175,8 +179,9 @@ export async function discoverBusinessAssets(accessToken) {
 }
 
 export function buildAuthUrl(state) {
+  const settings = metaSettings();
   const url = new URL(`https://www.facebook.com/${graphVersion()}/dialog/oauth`);
-  url.searchParams.set('client_id', metaSettings().appId);
+  url.searchParams.set('client_id', settings.appId);
   url.searchParams.set('redirect_uri', callbackUrl());
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('state', state);
