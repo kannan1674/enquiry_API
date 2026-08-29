@@ -3,6 +3,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const agencyRoutes = require('./routes/agencyRoutes');
 const publicAgencyRoutes = require('./routes/publicAgencyRoutes');
+const testRoutes = require('./routes/testRoutes');
 
 const app = express();
 
@@ -45,6 +46,8 @@ app.use(express.json({ limit: '2mb' }));
 app.get('/health', (req, res) => {
   res.json({ success: true, service: 'enquiry-system-api' });
 });
+
+app.use('/test', testRoutes);
 
 app.use('/api/auth', authRoutes);
 app.use('/api', publicAgencyRoutes);
