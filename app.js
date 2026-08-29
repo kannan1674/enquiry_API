@@ -74,6 +74,8 @@
 const express = require('express');
 const cors = require('cors');
 
+const testRoutes = require('./routes/testRoutes');
+
 const app = express();
 
 app.use(
@@ -99,6 +101,8 @@ app.get('/health', (req, res) => {
     status: 'ok',
   });
 });
+
+app.use('/test', testRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({
