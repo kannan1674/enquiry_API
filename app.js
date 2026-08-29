@@ -1,5 +1,12 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const authRoutes = require('./routes/authRoutes');
+const agencyRoutes = require('./routes/agencyRoutes');
+const publicAgencyRoutes = require('./routes/publicAgencyRoutes');
+const testRoutes = require('./routes/testRoutes');
+const inboundMessageRoutes = require('./routes/inboundMessageRoutes');
+const whatsappRoutes = require('./routes/whatsappRoutes');
 
 const app = express();
 
