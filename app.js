@@ -3,6 +3,7 @@ import cors from 'cors';
 import authRoutes from './routes/authRoutes.js';
 import metaRoutes from './routes/metaRoutes.js';
 import publicAgencyRoutes from './routes/publicAgencyRoutes.js';
+import agencyRoutes from './routes/agencyRoutes.js';
 
 const app = express();
 
@@ -61,6 +62,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/meta', metaRoutes);
 app.use('/api', publicAgencyRoutes);
+app.use('/api', agencyRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({
