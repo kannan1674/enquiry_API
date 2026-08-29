@@ -259,14 +259,24 @@ export async function signup(req, res, next) {
       tenantId: workspaceTenantId,
       role,
       passwordHash,
-      status: 'active',
+      status: 'inactive',
     });
 
     if (accountKind === 'direct' && workspaceTenantId) {
       await Tenant.update({ ownerUserId: user.id }, { where: { id: workspaceTenantId } });
     }
 
-    return res.status(201).json(await buildAuthResponse(user, 'Account created'));
+    const identifier = email
+      ? { channel: 'email', destination: email, field: 'email' }
+      : { channel: 'mobile', destination: mobile, field: 'mobile' };
+
+    await issueOtp(user, identifier, 'verify');
+
+    return res.status(201).json({
+      ...otpResponse(identifier.channel, 'Account created. Verification OTP sent'),
+      needsVerification: true,
+      email: user.email.endsWith('@signup.local') ? null : user.email,
+    });
   } catch (error) {
     return next(error);
   }
@@ -318,6 +328,17 @@ export async function signin(req, res, next) {
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password',
+      });
+    }
+
+    if (user.status === 'inactive') {
+      await issueOtp(user, identifier, 'verify');
+      return res.status(403).json({
+        success: false,
+        message: 'Account not verified. Verification OTP sent',
+        needsVerification: true,
+        channel: identifier.channel,
+        expiresInMinutes: OTP_EXPIRY_MINUTES,
       });
     }
 

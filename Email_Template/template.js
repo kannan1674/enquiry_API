@@ -153,7 +153,7 @@ async function sendOtpMail(to, otp, { firstName, purpose } = {}) {
       to,
       subject: isReset
         ? `Your Enquiry System password reset OTP is ${otp}`
-        : `Your Enquiry System OTP is ${otp}`,
+        : `Your Enquiry System account verification OTP is ${otp}`,
       text: `Hi ${firstName || 'there'}, your OTP is ${otp}. It expires in ${OTP_EXPIRY_MINUTES} minutes. Do not share this code.`,
       html,
     });
