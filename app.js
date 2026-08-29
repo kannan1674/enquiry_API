@@ -3,10 +3,6 @@ const cors = require('cors');
 
 const app = express();
 
-// --------------------------------------------------
-// CORS
-// --------------------------------------------------
-
 app.use(
   cors({
     origin: [
@@ -14,9 +10,7 @@ app.use(
       'http://localhost:3000',
       'http://127.0.0.1:3000',
     ],
-
     credentials: true,
-
     methods: [
       'GET',
       'POST',
@@ -25,7 +19,6 @@ app.use(
       'DELETE',
       'OPTIONS',
     ],
-
     allowedHeaders: [
       'Content-Type',
       'Authorization',
@@ -34,21 +27,8 @@ app.use(
   })
 );
 
-// --------------------------------------------------
-// Middleware
-// --------------------------------------------------
-
 app.use(express.json({ limit: '2mb' }));
-
-app.use(
-  express.urlencoded({
-    extended: true,
-  })
-);
-
-// --------------------------------------------------
-// Basic routes
-// --------------------------------------------------
+app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
   return res.status(200).json({
@@ -64,136 +44,19 @@ app.get('/health', (req, res) => {
   });
 });
 
-// --------------------------------------------------
-// TEST ROUTES
-// --------------------------------------------------
+// Load AUTH normally
+const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes);
 
-try {
-  const testRoutes = require('./routes/testRoutes');
+// Load test route
+const testRoutes = require('./routes/testRoutes');
+app.use('/test', testRoutes);
 
-  app.use('/test', testRoutes);
-
-  console.log('testRoutes loaded successfully');
-} catch (error) {
-  console.error(
-    'FAILED TO LOAD testRoutes:',
-    error.message,
-    error.stack
-  );
-}
-
-// --------------------------------------------------
-// AUTH ROUTES
-// --------------------------------------------------
-
-try {
-  const authRoutes = require('./routes/authRoutes');
-
-  app.use('/api/auth', authRoutes);
-
-  console.log('authRoutes loaded successfully');
-} catch (error) {
-  console.error(
-    'FAILED TO LOAD authRoutes:',
-    error.message,
-    error.stack
-  );
-}
-
-// --------------------------------------------------
-// PUBLIC AGENCY ROUTES
-// --------------------------------------------------
-
-try {
-  const publicAgencyRoutes = require(
-    './routes/publicAgencyRoutes'
-  );
-
-  app.use('/api', publicAgencyRoutes);
-  app.use('/api/backend', publicAgencyRoutes);
-
-  console.log(
-    'publicAgencyRoutes loaded successfully'
-  );
-} catch (error) {
-  console.error(
-    'FAILED TO LOAD publicAgencyRoutes:',
-    error.message,
-    error.stack
-  );
-}
-
-// --------------------------------------------------
-// AGENCY ROUTES
-// --------------------------------------------------
-
-try {
-  const agencyRoutes = require(
-    './routes/agencyRoutes'
-  );
-
-  app.use('/api', agencyRoutes);
-  app.use('/api/backend', agencyRoutes);
-
-  console.log('agencyRoutes loaded successfully');
-} catch (error) {
-  console.error(
-    'FAILED TO LOAD agencyRoutes:',
-    error.message,
-    error.stack
-  );
-}
-
-// --------------------------------------------------
-// INBOUND MESSAGE ROUTES
-// --------------------------------------------------
-
-try {
-  const inboundMessageRoutes = require(
-    './routes/inboundMessageRoutes'
-  );
-
-  app.use(
-    '/inbound-messages',
-    inboundMessageRoutes
-  );
-
-  console.log(
-    'inboundMessageRoutes loaded successfully'
-  );
-} catch (error) {
-  console.error(
-    'FAILED TO LOAD inboundMessageRoutes:',
-    error.message,
-    error.stack
-  );
-}
-
-// --------------------------------------------------
-// WHATSAPP ROUTES
-// --------------------------------------------------
-
-try {
-  const whatsappRoutes = require(
-    './routes/whatsappRoutes'
-  );
-
-  app.use('/whatsapp', whatsappRoutes);
-
-  console.log(
-    'whatsappRoutes loaded successfully'
-  );
-} catch (error) {
-  console.error(
-    'FAILED TO LOAD whatsappRoutes:',
-    error.message,
-    error.stack
-  );
-}
-
-// --------------------------------------------------
-// 404
-// --------------------------------------------------
+// Add the other routes only after auth works
+// const publicAgencyRoutes = require('./routes/publicAgencyRoutes');
+// const agencyRoutes = require('./routes/agencyRoutes');
+// const inboundMessageRoutes = require('./routes/inboundMessageRoutes');
+// const whatsappRoutes = require('./routes/whatsappRoutes');
 
 app.use((req, res) => {
   return res.status(404).json({
@@ -202,24 +65,13 @@ app.use((req, res) => {
   });
 });
 
-// --------------------------------------------------
-// Error handler
-// --------------------------------------------------
-
 app.use((err, req, res, next) => {
-  console.error(
-    'Application error:',
-    err.message,
-    err.stack
-  );
+  console.error('Application error:', err);
 
-  return res
-    .status(err.status || 500)
-    .json({
-      success: false,
-      message:
-        err.message || 'Server error',
-    });
+  return res.status(500).json({
+    success: false,
+    message: err.message || 'Server error',
+  });
 });
 
 module.exports = app;
