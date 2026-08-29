@@ -125,7 +125,10 @@ export async function discoverBusinessAssets(accessToken) {
     const clientOwned = await graphGetAll(`/${business.id}/client_whatsapp_business_accounts`, accessToken, {
       fields: 'id,name',
     }).catch(() => []);
-    wabas.push(...owned, ...clientOwned);
+    wabas.push(
+      ...owned.map((item) => ({ ...item, metaBusinessId: business.id })),
+      ...clientOwned.map((item) => ({ ...item, metaBusinessId: business.id })),
+    );
   }
 
   const uniqueWabas = [...new Map(wabas.map((item) => [item.id, item])).values()];
@@ -133,6 +136,7 @@ export async function discoverBusinessAssets(accessToken) {
     const numbers = await graphGetAll(`/${waba.id}/phone_numbers`, accessToken, {
       fields: 'id,display_phone_number,verified_name,quality_rating',
     }).catch(() => []);
+    const businessId = waba.metaBusinessId || businesses[0]?.id || null;
     numbers.forEach((number) => {
       assets.push({
         channelType: 'whatsapp',
@@ -143,32 +147,10 @@ export async function discoverBusinessAssets(accessToken) {
           displayPhoneNumber: number.display_phone_number || null,
           wabaId: waba.id,
           wabaName: waba.name || null,
+          metaBusinessId: businessId,
         },
       });
     });
-  }
-
-  const pages = await graphGetAll('/me/accounts', accessToken, {
-    fields: 'id,name,instagram_business_account',
-  }).catch(() => []);
-
-  for (const page of pages) {
-    assets.push({
-      channelType: 'facebook_page',
-      externalId: String(page.id),
-      displayName: page.name || String(page.id),
-      metadata: { source: 'facebook_login' },
-    });
-
-    const igId = page.instagram_business_account?.id;
-    if (igId) {
-      assets.push({
-        channelType: 'instagram',
-        externalId: String(igId),
-        displayName: `${page.name || 'Instagram'} Instagram`,
-        metadata: { source: 'facebook_login', pageId: page.id },
-      });
-    }
   }
 
   return {
@@ -176,6 +158,24 @@ export async function discoverBusinessAssets(accessToken) {
     facebookName: profile.name || null,
     assets,
   };
+}
+
+export async function subscribeWabaWebhook(wabaId, accessToken) {
+  if (!wabaId || !accessToken) {
+    return false;
+  }
+
+  const url = new URL(`${graphBase()}/${wabaId}/subscribed_apps`);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.error) {
+    console.error('WABA webhook subscribe failed:', data.error?.message || response.status);
+    return false;
+  }
+  return true;
 }
 
 export function buildAuthUrl(state) {
@@ -186,8 +186,8 @@ export function buildAuthUrl(state) {
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('state', state);
 
-  if (metaSettings().configId) {
-    url.searchParams.set('config_id', metaSettings().configId);
+  if (settings.configId) {
+    url.searchParams.set('config_id', settings.configId);
     url.searchParams.set('override_default_response_type', 'true');
   } else {
     url.searchParams.set(
@@ -196,9 +196,7 @@ export function buildAuthUrl(state) {
         'business_management',
         'whatsapp_business_management',
         'whatsapp_business_messaging',
-        'pages_show_list',
-        'pages_read_engagement',
-        'instagram_basic',
+        'ads_read',
       ].join(','),
     );
   }

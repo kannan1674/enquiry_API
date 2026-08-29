@@ -8,12 +8,15 @@ import {
   syncConnection,
   callback,
 } from '../controller/metaController.js';
+import { verifyWebhook, receiveWebhook } from '../controller/metaWebhookController.js';
 
 const router = express.Router();
 
 const setupRoles = requireRoles('agency_super_admin', 'agency_manager', 'direct_owner');
 
 router.get('/callback', callback);
+router.get('/webhook', verifyWebhook);
+router.post('/webhook', receiveWebhook);
 
 router.post('/setup', authenticate, setupRoles, setupApp);
 router.get('/status', authenticate, getStatus);

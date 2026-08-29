@@ -3,6 +3,7 @@ import { loadAuthorisedClientIds } from '../middleware/auth.js';
 import {
   discoverBusinessAssets,
   exchangeLongLivedToken,
+  subscribeWabaWebhook,
 } from './metaGraph.js';
 
 async function resolveImportTenant(userPayload, requestedTenantId) {
@@ -111,6 +112,13 @@ async function saveConnectionAndImport({ userId, tenantId, accessToken, expiresI
   } else {
     await UserMetaConnection.create(payload);
   }
+
+  const wabaIds = [...new Set(
+    unique
+      .filter((item) => item.channelType === 'whatsapp' && item.metadata?.wabaId)
+      .map((item) => item.metadata.wabaId),
+  )];
+  await Promise.all(wabaIds.map((wabaId) => subscribeWabaWebhook(wabaId, longLived)));
 
   const tenant = await Tenant.findByPk(tenantId);
 

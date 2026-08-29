@@ -56,6 +56,46 @@ export default (sequelize, DataTypes) => {
         defaultValue: {},
         field: 'raw_payload',
       },
+      tenantId: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+        field: 'tenant_id',
+      },
+      metaBusinessId: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: 'meta_business_id',
+      },
+      wabaId: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: 'waba_id',
+      },
+      phoneNumberId: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: 'phone_number_id',
+      },
+      customerWaId: {
+        type: DataTypes.STRING(40),
+        allowNull: true,
+        field: 'customer_wa_id',
+      },
+      adId: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: 'ad_id',
+      },
+      campaignId: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: 'campaign_id',
+      },
+      referralSource: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: 'referral_source',
+      },
       receivedAt: {
         type: DataTypes.DATE,
         allowNull: false,
@@ -86,6 +126,10 @@ export default (sequelize, DataTypes) => {
     InboundMessage.belongsTo(models.Tenant, {
       foreignKey: 'clientId',
       as: 'client',
+    });
+    InboundMessage.belongsTo(models.Tenant, {
+      foreignKey: 'tenantId',
+      as: 'tenant',
     });
   };
 
