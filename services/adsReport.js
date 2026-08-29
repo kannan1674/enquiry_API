@@ -83,24 +83,33 @@ export async function buildAdsReport({ user, tenantId, adId, startDate, endDate 
     throw Object.assign(new Error('Tenant access denied'), { status: 403 });
   }
 
-  const where = {
+  const localAds = await loadLocalAds({ tenantId, allowedIds, adId, range }).catch(() => []);
+  const testAdIds = localAds
+    .filter((ad) => ad.isTest)
+    .map((ad) => String(ad.adId));
+
+  const messageWhere = {
     receivedAt: {
       [Op.between]: [range.startAt, range.endAt],
     },
   };
-
-  if (tenantId) {
-    where.tenantId = Number(tenantId);
-  } else if (allowedIds) {
-    if (!allowedIds.length) {
-      return emptyReport(range);
-    }
-    where.tenantId = allowedIds;
-  }
-
-  const messageWhere = { ...where };
   if (adId) {
     messageWhere.adId = String(adId);
+  }
+
+  const tenantOrTest = [];
+  if (tenantId) {
+    tenantOrTest.push({ tenantId: Number(tenantId) });
+  } else if (allowedIds?.length) {
+    tenantOrTest.push({ tenantId: allowedIds });
+  }
+  if (testAdIds.length) {
+    tenantOrTest.push({ adId: testAdIds });
+  }
+  if (tenantOrTest.length && allowedIds !== null) {
+    messageWhere[Op.or] = tenantOrTest;
+  } else if (allowedIds && !allowedIds.length && !testAdIds.length) {
+    return emptyReport(range);
   }
 
   const messages = await InboundMessage.findAll({
@@ -149,7 +158,6 @@ export async function buildAdsReport({ user, tenantId, adId, startDate, endDate 
       }).catch(() => [])
     : [];
 
-  const localAds = await loadLocalAds({ tenantId, allowedIds, adId, range });
   const adsById = new Map();
   for (const metaAd of [...localAds, ...metaAds]) {
     if (adId && String(metaAd.adId) !== String(adId)) {
@@ -164,6 +172,7 @@ export async function buildAdsReport({ user, tenantId, adId, startDate, endDate 
       uniqueCustomers: 0,
       amount: metaAd.amount ?? 0,
       amountType: metaAd.amountType || null,
+      isTest: Boolean(metaAd.isTest),
       dailyBudget: metaAd.dailyBudget ?? 0,
       lifetimeBudget: metaAd.lifetimeBudget ?? 0,
       currency: metaAd.currency || 'INR',
@@ -251,22 +260,21 @@ function runAmount(ad, range) {
 }
 
 async function loadLocalAds({ tenantId, allowedIds, adId, range }) {
+  await Ad.sync();
+
   const where = {};
   if (adId) {
     where.adId = String(adId);
   }
 
-  const tenantFilter = [];
-  if (tenantId) {
-    tenantFilter.push({ tenantId: Number(tenantId) }, { tenantId: null });
-  } else if (allowedIds) {
-    if (!allowedIds.length) {
-      tenantFilter.push({ tenantId: null });
-    } else {
-      tenantFilter.push({ tenantId: allowedIds }, { tenantId: null });
+  // Seed/test ads are visible to every signed-in user.
+  if (allowedIds !== null || tenantId) {
+    const tenantFilter = [{ isTest: true }, { tenantId: null }];
+    if (tenantId) {
+      tenantFilter.push({ tenantId: Number(tenantId) });
+    } else if (allowedIds?.length) {
+      tenantFilter.push({ tenantId: allowedIds });
     }
-  }
-  if (tenantFilter.length) {
     where[Op.or] = tenantFilter;
   }
 
@@ -284,6 +292,7 @@ async function loadLocalAds({ tenantId, allowedIds, adId, range }) {
       lifetimeBudget: Number(row.lifetimeBudget || 0),
       currency: row.currency || 'INR',
       status: row.status || 'ACTIVE',
+      isTest: Boolean(row.isTest),
     };
   });
 }
