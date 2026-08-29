@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { InboundMessage, UserMetaConnection, User } from '../models/index.js';
+import { Ad, InboundMessage, UserMetaConnection, User } from '../models/index.js';
 import { loadAuthorisedClientIds } from '../middleware/auth.js';
 import { fetchAdInsights, fetchConnectedAds } from './metaGraph.js';
 import { loadMetaSettings } from './metaSettings.js';
@@ -149,8 +149,9 @@ export async function buildAdsReport({ user, tenantId, adId, startDate, endDate 
       }).catch(() => [])
     : [];
 
+  const localAds = await loadLocalAds({ tenantId, allowedIds, adId, range });
   const adsById = new Map();
-  for (const metaAd of metaAds) {
+  for (const metaAd of [...localAds, ...metaAds]) {
     if (adId && String(metaAd.adId) !== String(adId)) {
       continue;
     }
@@ -225,6 +226,66 @@ export async function buildAdsReport({ user, tenantId, adId, startDate, endDate 
     currency: ads[0]?.currency || 'INR',
     ads,
   };
+}
+
+function daysInclusive(since, until) {
+  const start = new Date(`${since}T00:00:00+05:30`);
+  const end = new Date(`${until}T00:00:00+05:30`);
+  const diff = Math.round((end.getTime() - start.getTime()) / 86400000);
+  return Math.max(1, diff + 1);
+}
+
+function runAmount(ad, range) {
+  const lifetime = Number(ad.lifetimeBudget || 0);
+  const daily = Number(ad.dailyBudget || 0);
+  if (lifetime > 0) {
+    return { amount: lifetime, amountType: 'lifetime' };
+  }
+  if (daily > 0) {
+    return {
+      amount: Number((daily * daysInclusive(range.startDate, range.endDate)).toFixed(2)),
+      amountType: 'daily',
+    };
+  }
+  return { amount: 0, amountType: null };
+}
+
+async function loadLocalAds({ tenantId, allowedIds, adId, range }) {
+  const where = {};
+  if (adId) {
+    where.adId = String(adId);
+  }
+
+  const tenantFilter = [];
+  if (tenantId) {
+    tenantFilter.push({ tenantId: Number(tenantId) }, { tenantId: null });
+  } else if (allowedIds) {
+    if (!allowedIds.length) {
+      tenantFilter.push({ tenantId: null });
+    } else {
+      tenantFilter.push({ tenantId: allowedIds }, { tenantId: null });
+    }
+  }
+  if (tenantFilter.length) {
+    where[Op.or] = tenantFilter;
+  }
+
+  const rows = await Ad.findAll({ where, order: [['id', 'ASC']] });
+  return rows.map((row) => {
+    const { amount, amountType } = runAmount(row, range);
+    return {
+      adId: String(row.adId),
+      adName: row.adName,
+      campaignId: row.campaignId || null,
+      campaignName: row.campaignName || null,
+      amount,
+      amountType,
+      dailyBudget: Number(row.dailyBudget || 0),
+      lifetimeBudget: Number(row.lifetimeBudget || 0),
+      currency: row.currency || 'INR',
+      status: row.status || 'ACTIVE',
+    };
+  });
 }
 
 function emptyReport(range) {

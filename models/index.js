@@ -13,6 +13,7 @@ import defineEnquiry from './enquiry.js';
 import defineUserMetaConnection from './userMetaConnection.js';
 import defineInboundMessage from './inboundMessage.js';
 import defineMetaAppConfig from './metaAppConfig.js';
+import defineAd from './ad.js';
 
 const sequelize = getSequelize();
 
@@ -29,6 +30,7 @@ export const Enquiry = defineEnquiry(sequelize, DataTypes);
 export const UserMetaConnection = defineUserMetaConnection(sequelize, DataTypes);
 export const InboundMessage = defineInboundMessage(sequelize, DataTypes);
 export const MetaAppConfig = defineMetaAppConfig(sequelize, DataTypes);
+export const Ad = defineAd(sequelize, DataTypes);
 
 const models = {
   Tenant,
@@ -44,6 +46,7 @@ const models = {
   UserMetaConnection,
   InboundMessage,
   MetaAppConfig,
+  Ad,
 };
 
 Object.values(models).forEach((model) => {
