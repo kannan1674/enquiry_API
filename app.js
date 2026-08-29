@@ -5,25 +5,8 @@ const app = express();
 
 app.use(
   cors({
-    origin: [
-      'https://enquiry-system-mu.vercel.app',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-    ],
+    origin: true,
     credentials: true,
-    methods: [
-      'GET',
-      'POST',
-      'PUT',
-      'PATCH',
-      'DELETE',
-      'OPTIONS',
-    ],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-WhatsApp-Signature',
-    ],
   })
 );
 
@@ -44,9 +27,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-//const authRoutes = require('./routes/authRoutes');
-
-//app.use('/api/auth', authRoutes);
+// AUTH
+const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({

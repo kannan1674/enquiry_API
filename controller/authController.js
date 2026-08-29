@@ -504,7 +504,11 @@ const express = require('express');
 
 const router = express.Router();
 
-// Test whether auth router itself loads
+function getAuthController() {
+  return require('../controller/authController');
+}
+
+// Test route - does NOT load controller or database
 router.get('/test', (req, res) => {
   return res.status(200).json({
     success: true,
@@ -512,38 +516,34 @@ router.get('/test', (req, res) => {
   });
 });
 
-// SIGN IN
-router.post('/signin', async (req, res, next) => {
+// SIGN UP
+router.post('/signup', async (req, res, next) => {
   try {
-    const controller = require('../controller/authController');
+    const { signup } = getAuthController();
 
-    if (typeof controller.signin !== 'function') {
-      throw new Error(
-        `authController.signin is ${typeof controller.signin}, expected function`
-      );
+    if (typeof signup !== 'function') {
+      throw new Error('signup controller is not a function');
     }
 
-    return await controller.signin(req, res, next);
+    return await signup(req, res, next);
   } catch (error) {
-    console.error('SIGNIN ERROR:', error);
+    console.error('Signup error:', error);
     return next(error);
   }
 });
 
-// SIGN UP
-router.post('/signup', async (req, res, next) => {
+// SIGN IN
+router.post('/signin', async (req, res, next) => {
   try {
-    const controller = require('../controller/authController');
+    const { signin } = getAuthController();
 
-    if (typeof controller.signup !== 'function') {
-      throw new Error(
-        `authController.signup is ${typeof controller.signup}, expected function`
-      );
+    if (typeof signin !== 'function') {
+      throw new Error('signin controller is not a function');
     }
 
-    return await controller.signup(req, res, next);
+    return await signin(req, res, next);
   } catch (error) {
-    console.error('SIGNUP ERROR:', error);
+    console.error('Signin error:', error);
     return next(error);
   }
 });
@@ -551,16 +551,15 @@ router.post('/signup', async (req, res, next) => {
 // SEND OTP
 router.post('/send-otp', async (req, res, next) => {
   try {
-    const controller = require('../controller/authController');
+    const { sendOtp } = getAuthController();
 
-    if (typeof controller.sendOtp !== 'function') {
-      throw new Error(
-        `authController.sendOtp is ${typeof controller.sendOtp}, expected function`
-      );
+    if (typeof sendOtp !== 'function') {
+      throw new Error('sendOtp controller is not a function');
     }
 
-    return await controller.sendOtp(req, res, next);
+    return await sendOtp(req, res, next);
   } catch (error) {
+    console.error('Send OTP error:', error);
     return next(error);
   }
 });
@@ -568,16 +567,15 @@ router.post('/send-otp', async (req, res, next) => {
 // RESEND OTP
 router.post('/resend-otp', async (req, res, next) => {
   try {
-    const controller = require('../controller/authController');
+    const { resendOtp } = getAuthController();
 
-    if (typeof controller.resendOtp !== 'function') {
-      throw new Error(
-        `authController.resendOtp is ${typeof controller.resendOtp}, expected function`
-      );
+    if (typeof resendOtp !== 'function') {
+      throw new Error('resendOtp controller is not a function');
     }
 
-    return await controller.resendOtp(req, res, next);
+    return await resendOtp(req, res, next);
   } catch (error) {
+    console.error('Resend OTP error:', error);
     return next(error);
   }
 });
@@ -585,16 +583,15 @@ router.post('/resend-otp', async (req, res, next) => {
 // VERIFY OTP
 router.post('/verify-otp', async (req, res, next) => {
   try {
-    const controller = require('../controller/authController');
+    const { verifyOtp } = getAuthController();
 
-    if (typeof controller.verifyOtp !== 'function') {
-      throw new Error(
-        `authController.verifyOtp is ${typeof controller.verifyOtp}, expected function`
-      );
+    if (typeof verifyOtp !== 'function') {
+      throw new Error('verifyOtp controller is not a function');
     }
 
-    return await controller.verifyOtp(req, res, next);
+    return await verifyOtp(req, res, next);
   } catch (error) {
+    console.error('Verify OTP error:', error);
     return next(error);
   }
 });
@@ -602,16 +599,15 @@ router.post('/verify-otp', async (req, res, next) => {
 // FORGOT PASSWORD
 router.post('/forgot-password', async (req, res, next) => {
   try {
-    const controller = require('../controller/authController');
+    const { forgotPassword } = getAuthController();
 
-    if (typeof controller.forgotPassword !== 'function') {
-      throw new Error(
-        `authController.forgotPassword is ${typeof controller.forgotPassword}, expected function`
-      );
+    if (typeof forgotPassword !== 'function') {
+      throw new Error('forgotPassword controller is not a function');
     }
 
-    return await controller.forgotPassword(req, res, next);
+    return await forgotPassword(req, res, next);
   } catch (error) {
+    console.error('Forgot password error:', error);
     return next(error);
   }
 });
@@ -619,16 +615,15 @@ router.post('/forgot-password', async (req, res, next) => {
 // RESET PASSWORD
 router.post('/reset-password', async (req, res, next) => {
   try {
-    const controller = require('../controller/authController');
+    const { resetPassword } = getAuthController();
 
-    if (typeof controller.resetPassword !== 'function') {
-      throw new Error(
-        `authController.resetPassword is ${typeof controller.resetPassword}, expected function`
-      );
+    if (typeof resetPassword !== 'function') {
+      throw new Error('resetPassword controller is not a function');
     }
 
-    return await controller.resetPassword(req, res, next);
+    return await resetPassword(req, res, next);
   } catch (error) {
+    console.error('Reset password error:', error);
     return next(error);
   }
 });
