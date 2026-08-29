@@ -1,6 +1,6 @@
 import { Enquiry, Tenant, TenantChannelAsset, PipelineStage } from '../models/index.js';
 import { resolveAccessibleTenantIds } from '../middleware/auth.js';
-import { syncInboundMessages } from '../services/inboundSync.js';
+import { syncInboundMessages, syncRecentInboundMessages } from '../services/inboundSync.js';
 import {
   ENQUIRY_STATUSES,
   canEditEnquiryStatus,
@@ -95,6 +95,8 @@ async function listEnquiries(req, res, next) {
       where.tenantId = allowedIds;
     }
 
+    await syncRecentInboundMessages().catch(() => null);
+
     const items = await Enquiry.findAll({
       where,
       attributes: { exclude: ['payload'] },
@@ -107,10 +109,12 @@ async function listEnquiries(req, res, next) {
       limit: 200,
     });
 
+    res.set('Cache-Control', 'no-store');
     return res.json({
       success: true,
       canEditStatus: canEditEnquiryStatus(req.user),
       statuses: ENQUIRY_STATUSES,
+      serverTime: new Date().toISOString(),
       enquiries: items.map((item) => serializeEnquiry(item, req.user)),
     });
   } catch (error) {

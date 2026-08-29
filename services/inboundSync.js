@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { InboundMessage } from '../models/index.js';
 import { routeInboundEvent } from './inboundRouter.js';
 
@@ -95,8 +96,7 @@ async function fetchInboundMessages() {
   return fetchRemoteInboundMessages();
 }
 
-async function syncInboundMessages() {
-  const messages = await fetchInboundMessages();
+async function routeMessages(messages) {
   const summary = {
     pulled: messages.length,
     routed: 0,
@@ -136,9 +136,38 @@ async function syncInboundMessages() {
   return summary;
 }
 
+async function syncInboundMessages() {
+  return routeMessages(await fetchInboundMessages());
+}
+
+async function syncRecentInboundMessages({ minutes = 20, limit = 40 } = {}) {
+  const since = new Date(Date.now() - minutes * 60 * 1000);
+  const rows = await InboundMessage.findAll({
+    attributes: [
+      'id',
+      'source',
+      'externalId',
+      'customerName',
+      'customerNumber',
+      'customerWaId',
+      'message',
+      'whatsappMessageId',
+      'phoneNumberId',
+      'adId',
+      'campaignId',
+      'rawPayload',
+    ],
+    where: { receivedAt: { [Op.gte]: since } },
+    order: [['receivedAt', 'DESC']],
+    limit,
+  });
+  return routeMessages(rows.map((row) => row.toJSON()));
+}
+
 export {
   inboundMessagesUrl,
   fetchInboundMessages,
   syncInboundMessages,
+  syncRecentInboundMessages,
   toInboundEvent,
 };
