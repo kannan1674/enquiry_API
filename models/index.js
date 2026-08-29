@@ -1,20 +1,32 @@
-const { DataTypes } = require('sequelize');
-const { getSequelize } = require('../config/db.config');
+import { DataTypes } from 'sequelize';
+import { getSequelize } from '../config/db.config.js';
+import defineTenant from './tenant.js';
+import defineUser from './user.js';
+import defineOtp from './otp.js';
+import defineUserAuthorisedClient from './userAuthorisedClient.js';
+import defineTenantChannelAsset from './tenantChannelAsset.js';
+import definePipelineStage from './pipelineStage.js';
+import defineRoutingRule from './routingRule.js';
+import defineUserInvite from './userInvite.js';
+import defineQuarantinedInboundEvent from './quarantinedInboundEvent.js';
+import defineEnquiry from './enquiry.js';
+import defineUserMetaConnection from './userMetaConnection.js';
+import defineInboundMessage from './inboundMessage.js';
 
 const sequelize = getSequelize();
 
-const Tenant = require('./tenant')(sequelize, DataTypes);
-const User = require('./user')(sequelize, DataTypes);
-const Otp = require('./otp')(sequelize, DataTypes);
-const UserAuthorisedClient = require('./userAuthorisedClient')(sequelize, DataTypes);
-const TenantChannelAsset = require('./tenantChannelAsset')(sequelize, DataTypes);
-const PipelineStage = require('./pipelineStage')(sequelize, DataTypes);
-const RoutingRule = require('./routingRule')(sequelize, DataTypes);
-const UserInvite = require('./userInvite')(sequelize, DataTypes);
-const QuarantinedInboundEvent = require('./quarantinedInboundEvent')(sequelize, DataTypes);
-const Enquiry = require('./enquiry')(sequelize, DataTypes);
-const UserMetaConnection = require('./userMetaConnection')(sequelize, DataTypes);
-const InboundMessage = require('./inboundMessage')(sequelize, DataTypes);
+export const Tenant = defineTenant(sequelize, DataTypes);
+export const User = defineUser(sequelize, DataTypes);
+export const Otp = defineOtp(sequelize, DataTypes);
+export const UserAuthorisedClient = defineUserAuthorisedClient(sequelize, DataTypes);
+export const TenantChannelAsset = defineTenantChannelAsset(sequelize, DataTypes);
+export const PipelineStage = definePipelineStage(sequelize, DataTypes);
+export const RoutingRule = defineRoutingRule(sequelize, DataTypes);
+export const UserInvite = defineUserInvite(sequelize, DataTypes);
+export const QuarantinedInboundEvent = defineQuarantinedInboundEvent(sequelize, DataTypes);
+export const Enquiry = defineEnquiry(sequelize, DataTypes);
+export const UserMetaConnection = defineUserMetaConnection(sequelize, DataTypes);
+export const InboundMessage = defineInboundMessage(sequelize, DataTypes);
 
 const models = {
   Tenant,
@@ -39,4 +51,4 @@ Object.values(models).forEach((model) => {
 
 models.sequelize = sequelize;
 
-module.exports = models;
+export default models;

@@ -1,6 +1,6 @@
-const { Tenant, User, UserAuthorisedClient, PipelineStage, TenantChannelAsset, UserInvite } = require('../models');
-const { slugifyClientCode, seedDefaultPipeline } = require('../services/tenantSetup');
-const { loadAuthorisedClientIds } = require('../middleware/auth');
+import { Tenant, User, UserAuthorisedClient, PipelineStage, TenantChannelAsset, UserInvite } from '../models/index.js';
+import { slugifyClientCode, seedDefaultPipeline } from '../services/tenantSetup.js';
+import { loadAuthorisedClientIds } from '../middleware/auth.js';
 
 const TENANT_INCLUDES = [
   { model: User, attributes: ['id'], required: false },
@@ -157,7 +157,7 @@ async function listTenantUsers(req, res, next) {
   }
 }
 
-module.exports = {
+export {
   listTenants,
   getTenant,
   createTenant,

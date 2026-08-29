@@ -1,6 +1,6 @@
-const { sequelize, dbSettings } = require('../config/db.config');
+import { getSequelize, getDbSettings } from '../config/db.config.js';
 
-async function ping(req, res) {
+export async function ping(req, res) {
   res.json({
     success: true,
     message: 'API is reachable',
@@ -9,8 +9,10 @@ async function ping(req, res) {
   });
 }
 
-async function db(req, res, next) {
+export async function db(req, res, next) {
   try {
+    const sequelize = getSequelize();
+    const dbSettings = getDbSettings();
     await sequelize.authenticate();
     const [rows] = await sequelize.query('SELECT 1 AS ok, DATABASE() AS database_name, NOW() AS server_time');
     const result = rows[0] || {};
@@ -27,8 +29,3 @@ async function db(req, res, next) {
     next(error);
   }
 }
-
-module.exports = {
-  ping,
-  db,
-};

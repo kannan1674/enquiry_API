@@ -1,9 +1,9 @@
-const { TenantChannelAsset, UserMetaConnection, User, Tenant } = require('../models');
-const { loadAuthorisedClientIds } = require('../middleware/auth');
-const {
+import { TenantChannelAsset, UserMetaConnection, User, Tenant } from '../models/index.js';
+import { loadAuthorisedClientIds } from '../middleware/auth.js';
+import {
   discoverBusinessAssets,
   exchangeLongLivedToken,
-} = require('./metaGraph');
+} from './metaGraph.js';
 
 async function resolveImportTenant(userPayload, requestedTenantId) {
   const user = await User.findByPk(userPayload.id || userPayload.userId);
@@ -140,7 +140,7 @@ async function syncStoredConnection(userPayload, requestedTenantId) {
   });
 }
 
-module.exports = {
+export {
   resolveImportTenant,
   upsertDiscoveredAssets,
   saveConnectionAndImport,

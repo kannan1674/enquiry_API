@@ -1,5 +1,5 @@
-const { QuarantinedInboundEvent, Tenant, TenantChannelAsset } = require('../models');
-const { routeInboundEvent } = require('../services/inboundRouter');
+import { QuarantinedInboundEvent, Tenant, TenantChannelAsset } from '../models/index.js';
+import { routeInboundEvent } from '../services/inboundRouter.js';
 
 function serializeQuarantine(item) {
   return {
@@ -123,7 +123,7 @@ async function dismissQuarantine(req, res, next) {
   }
 }
 
-module.exports = {
+export {
   listQuarantine,
   mapQuarantine,
   dismissQuarantine,

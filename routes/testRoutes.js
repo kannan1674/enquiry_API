@@ -1,9 +1,9 @@
-const express = require('express');
-const { ping, db } = require('../controller/testController');
+import express from 'express';
+import { ping, db } from '../controller/testController.js';
 
 const router = express.Router();
 
 router.get('/', ping);
 router.get('/db', db);
 
-module.exports = router;
+export default router;

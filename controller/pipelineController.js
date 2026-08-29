@@ -1,5 +1,5 @@
-const { PipelineStage, RoutingRule, User } = require('../models');
-const { CHANNEL_TYPES, isChannelType } = require('../services/inboundRouter');
+import { PipelineStage, RoutingRule, User } from '../models/index.js';
+import { CHANNEL_TYPES, isChannelType } from '../services/inboundRouter.js';
 
 function serializeStage(stage) {
   return {
@@ -157,7 +157,7 @@ async function upsertRoutingRule(req, res, next) {
   }
 }
 
-module.exports = {
+export {
   CHANNEL_TYPES,
   listPipeline,
   createStage,

@@ -1,12 +1,12 @@
-const express = require('express');
-const { authenticate, requireRoles, requireTenantAccess, AGENCY_ADMIN_ROLES } = require('../middleware/auth');
-const tenantController = require('../controller/tenantController');
-const inviteController = require('../controller/inviteController');
-const pipelineController = require('../controller/pipelineController');
-const assetController = require('../controller/assetController');
-const quarantineController = require('../controller/quarantineController');
-const enquiryController = require('../controller/enquiryController');
-const metaController = require('../controller/metaController');
+import express from 'express';
+import { authenticate, requireRoles, requireTenantAccess, AGENCY_ADMIN_ROLES } from '../middleware/auth.js';
+import * as tenantController from '../controller/tenantController.js';
+import * as inviteController from '../controller/inviteController.js';
+import * as pipelineController from '../controller/pipelineController.js';
+import * as assetController from '../controller/assetController.js';
+import * as quarantineController from '../controller/quarantineController.js';
+import * as enquiryController from '../controller/enquiryController.js';
+import * as metaController from '../controller/metaController.js';
 
 const router = express.Router();
 const tenantAccess = [authenticate, requireTenantAccess('tenantId')];
@@ -45,4 +45,4 @@ router.get('/meta/connect-url', authenticate, metaController.getConnectUrl);
 router.post('/meta/complete', authenticate, metaController.completeLogin);
 router.post('/meta/sync', authenticate, metaController.syncConnection);
 
-module.exports = router;
+export default router;

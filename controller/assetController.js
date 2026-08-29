@@ -1,5 +1,5 @@
-const { TenantChannelAsset } = require('../models');
-const { CHANNEL_TYPES, isChannelType } = require('../services/inboundRouter');
+import { TenantChannelAsset } from '../models/index.js';
+import { CHANNEL_TYPES, isChannelType } from '../services/inboundRouter.js';
 
 function serializeAsset(asset) {
   return {
@@ -126,7 +126,7 @@ async function deleteAsset(req, res, next) {
   }
 }
 
-module.exports = {
+export {
   listAssets,
   createAsset,
   updateAsset,

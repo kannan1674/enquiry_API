@@ -1,8 +1,8 @@
-const express = require('express');
-const { getInboundMessages } = require('../controller/inboundMessageController');
+import express from 'express';
+import { getInboundMessages } from '../controller/inboundMessageController.js';
 
 const router = express.Router();
 
 router.get('/', getInboundMessages);
 
-module.exports = router;
+export default router;

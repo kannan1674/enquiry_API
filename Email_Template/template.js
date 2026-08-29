@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 const OTP_EXPIRY_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES) || 5;
 
@@ -233,7 +233,7 @@ async function sendInviteMail(to, { companyName, inviteUrl, role }) {
   });
 }
 
-module.exports = {
+export {
   accountVerificationTemplate,
   forgotPasswordOtpTemplate,
   sendOtpMail,

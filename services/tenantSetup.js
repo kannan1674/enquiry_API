@@ -27,7 +27,7 @@ async function seedDefaultPipeline(tenantId, PipelineStage) {
   );
 }
 
-module.exports = {
+export {
   DEFAULT_PIPELINE,
   slugifyClientCode,
   seedDefaultPipeline,

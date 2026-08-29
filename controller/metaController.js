@@ -1,13 +1,13 @@
-const jwt = require('jsonwebtoken');
-const { UserMetaConnection, TenantChannelAsset, Tenant } = require('../models');
-const { graphConfigured, buildAuthUrl, exchangeCodeForToken, exchangeJsSdkCode } = require('../services/metaGraph');
-const { metaSettings, saveMetaSettings } = require('../services/metaSettings');
-const {
+import jwt from 'jsonwebtoken';
+import { UserMetaConnection, TenantChannelAsset, Tenant } from '../models/index.js';
+import { graphConfigured, buildAuthUrl, exchangeCodeForToken, exchangeJsSdkCode } from '../services/metaGraph.js';
+import { metaSettings, saveMetaSettings } from '../services/metaSettings.js';
+import {
   resolveImportTenant,
   saveConnectionAndImport,
   syncStoredConnection,
   upsertDiscoveredAssets,
-} = require('../services/metaImport');
+} from '../services/metaImport.js';
 
 function frontendUrl() {
   return (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -271,7 +271,7 @@ async function syncConnection(req, res, next) {
   }
 }
 
-module.exports = {
+export {
   setupApp,
   getStatus,
   getConnectUrl,

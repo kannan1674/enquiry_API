@@ -1,5 +1,6 @@
-const express = require('express');
-const cors = require('cors');
+import express from 'express';
+import cors from 'cors';
+import authRoutes from './routes/authRoutes.js';
 
 const app = express();
 
@@ -7,7 +8,7 @@ app.use(
   cors({
     origin: true,
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json({ limit: '2mb' }));
@@ -27,8 +28,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// AUTH
-const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
 app.use((req, res) => {
@@ -47,4 +46,4 @@ app.use((err, req, res, next) => {
   });
 });
 
-module.exports = app;
+export default app;

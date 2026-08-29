@@ -1,4 +1,4 @@
-const { routeInboundEvent } = require('./inboundRouter');
+import { routeInboundEvent } from './inboundRouter.js';
 
 const SOURCE_TO_CHANNEL = {
   whatsapp: 'whatsapp',
@@ -103,7 +103,7 @@ async function syncInboundMessages() {
   return summary;
 }
 
-module.exports = {
+export {
   inboundMessagesUrl,
   fetchInboundMessages,
   syncInboundMessages,

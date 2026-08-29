@@ -1,10 +1,10 @@
-const crypto = require('crypto');
-const { Op } = require('sequelize');
-const { UserInvite, Tenant, User } = require('../models');
-const { sendInviteMail } = require('../Email_Template/template');
-const bcrypt = require('bcryptjs');
-const { buildAuthResponse } = require('./authController');
-const { CLIENT_ROLES } = require('../middleware/auth');
+import crypto from 'crypto';
+import { Op } from 'sequelize';
+import { UserInvite, Tenant, User } from '../models/index.js';
+import { sendInviteMail } from '../Email_Template/template.js';
+import bcrypt from 'bcryptjs';
+import { buildAuthResponse } from './authController.js';
+import { CLIENT_ROLES } from '../middleware/auth.js';
 
 const INVITE_DAYS = 7;
 
@@ -201,7 +201,7 @@ async function acceptInvite(req, res, next) {
   }
 }
 
-module.exports = {
+export {
   listInvites,
   createInvite,
   getInvite,

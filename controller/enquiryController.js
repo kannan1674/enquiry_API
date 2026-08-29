@@ -1,6 +1,6 @@
-const { Enquiry, Tenant, TenantChannelAsset, PipelineStage, User } = require('../models');
-const { loadAuthorisedClientIds } = require('../middleware/auth');
-const { syncInboundMessages } = require('../services/inboundSync');
+import { Enquiry, Tenant, TenantChannelAsset, PipelineStage, User } from '../models/index.js';
+import { loadAuthorisedClientIds } from '../middleware/auth.js';
+import { syncInboundMessages } from '../services/inboundSync.js';
 
 function serializeEnquiry(enquiry) {
   return {
@@ -88,7 +88,7 @@ async function syncInbound(req, res, next) {
   }
 }
 
-module.exports = {
+export {
   listEnquiries,
   syncInbound,
 };

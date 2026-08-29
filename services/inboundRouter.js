@@ -1,10 +1,10 @@
-const {
+import {
   TenantChannelAsset,
   PipelineStage,
   RoutingRule,
   Enquiry,
   QuarantinedInboundEvent,
-} = require('../models');
+} from '../models/index.js';
 
 const CHANNEL_TYPES = ['facebook_page', 'instagram', 'lead_form', 'whatsapp'];
 
@@ -153,7 +153,7 @@ async function routeInboundEvent(event) {
   };
 }
 
-module.exports = {
+export {
   CHANNEL_TYPES,
   isChannelType,
   findMappedAsset,

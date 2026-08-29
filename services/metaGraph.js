@@ -1,4 +1,4 @@
-const { metaSettings, graphConfigured } = require('./metaSettings');
+import { metaSettings, graphConfigured } from './metaSettings.js';
 
 function graphVersion() {
   return metaSettings().graphVersion || 'v21.0';
@@ -193,7 +193,7 @@ function buildAuthUrl(state) {
   return url.toString();
 }
 
-module.exports = {
+export {
   graphConfigured,
   callbackUrl,
   exchangeCodeForToken,

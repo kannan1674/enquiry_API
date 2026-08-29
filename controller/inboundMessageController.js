@@ -1,7 +1,7 @@
-const { InboundMessage } = require('../models');
-const { connectDatabase } = require('../config/db.config');
+import { InboundMessage } from '../models/index.js';
+import { connectDatabase } from '../config/db.config.js';
 
-const getInboundMessages = async (req, res) => {
+export async function getInboundMessages(req, res) {
   try {
     await connectDatabase();
     const messages = await InboundMessage.findAll({
@@ -20,6 +20,4 @@ const getInboundMessages = async (req, res) => {
       message: 'Failed to fetch inbound messages',
     });
   }
-};
-
-module.exports = { getInboundMessages };
+}

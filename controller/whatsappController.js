@@ -1,5 +1,5 @@
-const { InboundMessage, TenantChannelAsset } = require('../models');
-const { connectDatabase } = require('../config/db.config');
+import { InboundMessage, TenantChannelAsset } from '../models/index.js';
+import { connectDatabase } from '../config/db.config.js';
 
 const VERIFY_TOKEN =
   process.env.WHATSAPP_VERIFY_TOKEN || 'enquiry_system_whatsapp_verify_2026';
@@ -87,4 +87,4 @@ const receiveWebhook = async (req, res) => {
   }
 };
 
-module.exports = { verifyWebhook, receiveWebhook };
+export { verifyWebhook, receiveWebhook };

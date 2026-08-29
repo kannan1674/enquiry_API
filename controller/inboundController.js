@@ -1,4 +1,4 @@
-const { routeInboundEvent, isChannelType } = require('../services/inboundRouter');
+import { routeInboundEvent, isChannelType } from '../services/inboundRouter.js';
 
 function firstDefined(...values) {
   return values.find((value) => value != null && value !== '');
@@ -98,7 +98,7 @@ function verifyMetaWebhook(req, res) {
   return res.status(403).json({ success: false, message: 'Webhook verification failed' });
 }
 
-module.exports = {
+export {
   ingestInbound,
   verifyMetaWebhook,
 };

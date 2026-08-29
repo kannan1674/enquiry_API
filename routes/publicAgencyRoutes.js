@@ -1,7 +1,7 @@
-const express = require('express');
-const inviteController = require('../controller/inviteController');
-const inboundController = require('../controller/inboundController');
-const metaController = require('../controller/metaController');
+import express from 'express';
+import * as inviteController from '../controller/inviteController.js';
+import * as inboundController from '../controller/inboundController.js';
+import * as metaController from '../controller/metaController.js';
 
 const router = express.Router();
 
@@ -14,4 +14,4 @@ router.post('/webhooks/whatsapp', inboundController.ingestInbound);
 router.post('/inbound/events', inboundController.ingestInbound);
 router.get('/meta/callback', metaController.callback);
 
-module.exports = router;
+export default router;

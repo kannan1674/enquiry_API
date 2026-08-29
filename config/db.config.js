@@ -1,11 +1,12 @@
-const dns = require('dns');
-const { Sequelize } = require('sequelize');
+import './loadEnv.js';
+import dns from 'dns';
+import { Sequelize } from 'sequelize';
 
 dns.setDefaultResultOrder('ipv4first');
 
 let sequelizeInstance = null;
 
-function getSequelize() {
+export function getSequelize() {
   if (sequelizeInstance) {
     return sequelizeInstance;
   }
@@ -32,47 +33,39 @@ function getSequelize() {
     throw new Error('DB_NAME is not configured');
   }
 
-  sequelizeInstance = new Sequelize(
-    database,
-    username,
-    password,
-    {
-      host,
-      port,
-      dialect: 'mysql',
-      logging: false,
-
-      dialectOptions: {
-        ssl: {
-          require: true,
-          rejectUnauthorized: false,
-        },
+  sequelizeInstance = new Sequelize(database, username, password, {
+    host,
+    port,
+    dialect: 'mysql',
+    logging: false,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
       },
-
-      pool: {
-        max: 5,
-        min: 0,
-        acquire: 30000,
-        idle: 10000,
-      },
-
-      define: {
-        underscored: true,
-        timestamps: true,
-        createdAt: 'created_at',
-        updatedAt: 'updated_at',
-      },
-    }
-  );
+    },
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000,
+    },
+    define: {
+      underscored: true,
+      timestamps: true,
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+  });
 
   return sequelizeInstance;
 }
 
-async function connectDatabase() {
+export async function connectDatabase() {
   const db = getSequelize();
 
   await db.authenticate();
-  const { InboundMessage } = require('../models');
+  const { InboundMessage } = await import('../models/index.js');
   await InboundMessage.sync();
 
   console.log('Database connected successfully');
@@ -80,11 +73,11 @@ async function connectDatabase() {
   return db;
 }
 
-async function testDatabaseConnection() {
+export async function testDatabaseConnection() {
   return connectDatabase();
 }
 
-function getDbSettings() {
+export function getDbSettings() {
   return {
     host: process.env.DB_HOST || '',
     port: Number(process.env.DB_PORT || 3306),
@@ -92,10 +85,3 @@ function getDbSettings() {
     database: process.env.DB_NAME || '',
   };
 }
-
-module.exports = {
-  getSequelize,
-  connectDatabase,
-  testDatabaseConnection,
-  getDbSettings,
-};

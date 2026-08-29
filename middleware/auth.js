@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken');
-const { User, Tenant } = require('../models');
+import jwt from 'jsonwebtoken';
+import { User, Tenant } from '../models/index.js';
 
 const AGENCY_ROLES = ['agency_super_admin', 'agency_manager', 'agency_agent'];
 const AGENCY_ADMIN_ROLES = ['agency_super_admin', 'agency_manager'];
@@ -130,7 +130,7 @@ function requireTenantAccess(param = 'tenantId') {
   };
 }
 
-module.exports = {
+export {
   AGENCY_ROLES,
   AGENCY_ADMIN_ROLES,
   CLIENT_ROLES,
