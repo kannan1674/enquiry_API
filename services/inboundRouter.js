@@ -29,6 +29,7 @@ async function findMappedAsset(channelType, externalId) {
 async function resolveRouting(asset) {
   const rules = await RoutingRule.findAll({
     where: { tenantId: asset.tenantId },
+    attributes: ['id', 'assetId', 'channelType', 'pipelineStageId', 'assigneeUserId'],
     order: [['id', 'ASC']],
   });
 
@@ -114,7 +115,7 @@ async function createEnquiryFromInbound({ asset, routing, event }) {
   return { enquiry, duplicate: false };
 }
 
-async function routeInboundEvent(event) {
+async function routeInboundEvent(event, mappedAsset = null) {
   const channelType = event.channelType;
   const externalAssetId = event.externalAssetId;
 
@@ -125,7 +126,7 @@ async function routeInboundEvent(event) {
     };
   }
 
-  const asset = await findMappedAsset(channelType, externalAssetId);
+  const asset = mappedAsset || await findMappedAsset(channelType, externalAssetId);
   if (!asset) {
     const quarantined = await quarantineUnknownAsset({
       channelType,

@@ -63,6 +63,16 @@ export default (sequelize, DataTypes) => {
     },
     {
       tableName: 'users',
+      indexes: [
+        {
+          name: 'idx_users_mobile',
+          fields: ['mobile'],
+        },
+        {
+          name: 'idx_users_status',
+          fields: ['status'],
+        },
+      ],
     },
   );
 

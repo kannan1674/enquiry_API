@@ -98,7 +98,13 @@ function mailPassword() {
   return String(process.env.MAIL_APP_PASSWORD || process.env.MAIL_PASSWORD || '').replace(/\s+/g, '');
 }
 
+let transporter = null;
+
 function createTransporter() {
+  if (transporter) {
+    return transporter;
+  }
+
   const user = mailUser();
   const pass = mailPassword();
   const host = (process.env.MAIL_HOST || 'smtp.gmail.com').trim();
@@ -108,19 +114,23 @@ function createTransporter() {
       ? String(process.env.MAIL_SECURE).toLowerCase() === 'true'
       : port === 465;
 
-  if (host.includes('gmail.com')) {
-    return nodemailer.createTransport({
+  transporter = host.includes('gmail.com')
+    ? nodemailer.createTransport({
       service: 'gmail',
       auth: { user, pass },
+      pool: true,
+      maxConnections: 2,
+    })
+    : nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass },
+      pool: true,
+      maxConnections: 2,
     });
-  }
 
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: { user, pass },
-  });
+  return transporter;
 }
 
 function mailFrom() {

@@ -46,56 +46,63 @@ async function findWhatsappAsset(phoneNumberId, wabaId) {
 
 export async function saveWhatsappWebhookMessages(body = {}) {
   const saved = [];
+  const entries = body.entry || [];
+  const assetCache = new Map();
 
-  await InboundMessage.sync({ alter: true });
-
-  for (const entry of body.entry || []) {
+  for (const entry of entries) {
     for (const change of entry.changes || []) {
       const value = change.value || {};
+      const messages = value.messages || [];
+      if (!messages.length) {
+        continue;
+      }
+
       const phoneNumberId = value.metadata?.phone_number_id || null;
       const displayPhone = value.metadata?.display_phone_number || null;
       const contacts = value.contacts || [];
+      const wabaId = value.metadata?.waba_id || null;
+      const cacheKey = `${phoneNumberId || ''}:${wabaId || ''}`;
+      if (!assetCache.has(cacheKey)) {
+        assetCache.set(cacheKey, await findWhatsappAsset(phoneNumberId, wabaId));
+      }
+      const asset = assetCache.get(cacheKey);
 
-      for (const message of value.messages || []) {
+      for (const message of messages) {
         const referral = referralFromMessage(message);
-        const asset = await findWhatsappAsset(phoneNumberId, value.metadata?.waba_id);
         const tenantId = asset?.tenantId || null;
         const text = messageText(message);
         const receivedAt = message.timestamp
           ? new Date(Number(message.timestamp) * 1000)
           : new Date();
+        const whatsappMessageId = message.id || '';
 
-        console.log('Incoming WhatsApp message:', {
-          from: message.from,
-          text,
-          id: message.id,
-          timestamp: message.timestamp,
-          phoneNumberId,
-          adId: referral.adId,
+        const defaults = {
+            clientId: tenantId,
+            tenantId,
+            source: 'whatsapp',
+            externalId: phoneNumberId || message.id,
+            customerName: contacts[0]?.profile?.name || '',
+            customerNumber: message.from || '',
+            customerWaId: message.from || null,
+            message: text,
+            whatsappMessageId,
+            status: 'new',
+            rawPayload: {
+              message,
+              referral: message.referral || null,
+              metadata: value.metadata || null,
+            },
+            metaBusinessId: asset?.metadata?.metaBusinessId || null,
+            wabaId: asset?.metadata?.wabaId || wabaId,
+            phoneNumberId,
+            adId: referral.adId,
+            campaignId: referral.campaignId,
+            referralSource: referral.referralSource,
+            receivedAt,
+          },
         });
 
-        const record = await InboundMessage.create({
-          clientId: tenantId,
-          tenantId,
-          source: 'whatsapp',
-          externalId: phoneNumberId || message.id,
-          customerName: contacts[0]?.profile?.name || '',
-          customerNumber: message.from || '',
-          customerWaId: message.from || null,
-          message: text,
-          whatsappMessageId: message.id || '',
-          status: 'new',
-          rawPayload: body,
-          metaBusinessId: asset?.metadata?.metaBusinessId || null,
-          wabaId: asset?.metadata?.wabaId || value.metadata?.waba_id || null,
-          phoneNumberId,
-          adId: referral.adId,
-          campaignId: referral.campaignId,
-          referralSource: referral.referralSource,
-          receivedAt,
-        });
-
-        if (phoneNumberId) {
+        if (created && phoneNumberId) {
           await routeInboundEvent({
             channelType: 'whatsapp',
             externalAssetId: String(phoneNumberId),
@@ -104,12 +111,11 @@ export async function saveWhatsappWebhookMessages(body = {}) {
             contactPhone: message.from || displayPhone || null,
             message: text,
             payload: {
-              ...body,
               referral: message.referral || null,
               adId: referral.adId,
               campaignId: referral.campaignId,
             },
-          }).catch((error) => {
+          }, asset).catch((error) => {
             console.error('Enquiry routing error:', error.message);
           });
         }

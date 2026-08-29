@@ -1,10 +1,21 @@
 import { InboundMessage } from '../models/index.js';
-import { connectDatabase } from '../config/db.config.js';
 
 export async function getInboundMessages(req, res) {
   try {
-    await connectDatabase();
     const messages = await InboundMessage.findAll({
+      attributes: [
+        'id',
+        'source',
+        'customerName',
+        'customerNumber',
+        'message',
+        'adId',
+        'campaignId',
+        'tenantId',
+        'phoneNumberId',
+        'status',
+        'receivedAt',
+      ],
       order: [['receivedAt', 'DESC']],
       limit: 100,
     });

@@ -23,9 +23,15 @@ export function verifyWebhook(req, res) {
 export async function receiveWebhook(req, res) {
   try {
     const body = req.body || {};
+    const hasMessages = (body.entry || []).some((entry) =>
+      (entry.changes || []).some((change) => (change.value?.messages || []).length),
+    );
+
+    if (!hasMessages) {
+      return res.sendStatus(200);
+    }
 
     await saveWhatsappWebhookMessages(body);
-
     return res.sendStatus(200);
   } catch (error) {
     console.error('WhatsApp webhook error:', error);

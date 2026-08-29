@@ -23,6 +23,19 @@ function isStrongPassword(password) {
 const OTP_LENGTH = Number(process.env.OTP_LENGTH) || 6;
 const OTP_EXPIRY_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES) || 5;
 const OTP_MAX_VERIFY_ATTEMPTS = Number(process.env.OTP_MAX_VERIFY_ATTEMPTS) || 5;
+const PASSWORD_BCRYPT_ROUNDS = 10;
+const OTP_BCRYPT_ROUNDS = 6;
+const USER_AUTH_FIELDS = [
+  'id',
+  'name',
+  'email',
+  'mobile',
+  'role',
+  'tenantId',
+  'status',
+  'passwordHash',
+  'failedAttempts',
+];
 
 function generateOtp() {
   const min = 10 ** (OTP_LENGTH - 1);
@@ -68,6 +81,7 @@ function otpResponse(channel, message = 'OTP sent') {
 async function findUser(identifier) {
   return User.findOne({
     where: { [identifier.field]: identifier.destination },
+    attributes: USER_AUTH_FIELDS,
   });
 }
 
@@ -77,18 +91,19 @@ async function getAuthorisedClientIds(user) {
 
 export async function issueOtp(user, identifier, purpose = 'verify') {
   const otp = generateOtp();
-  const otpHash = await bcrypt.hash(otp, 10);
-  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-  await Otp.update(
-    { verifiedAt: new Date() },
-    {
-      where: {
-        userId: user.id,
-        verifiedAt: null,
+  const [otpHash] = await Promise.all([
+    bcrypt.hash(otp, OTP_BCRYPT_ROUNDS),
+    Otp.update(
+      { verifiedAt: new Date() },
+      {
+        where: {
+          userId: user.id,
+          verifiedAt: null,
+        },
       },
-    },
-  );
+    ),
+  ]);
+  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
   await Otp.create({
     userId: user.id,
@@ -99,19 +114,17 @@ export async function issueOtp(user, identifier, purpose = 'verify') {
   });
 
   const mailTo = identifier.channel === 'email' ? identifier.destination : user.email;
-
-  try {
-    const mailed = await sendOtpMail(mailTo, otp, { firstName: user.name, purpose });
-    if (mailed) {
-      console.log(`OTP emailed to ${mailTo}`);
-    } else {
-      console.log(`OTP generated for ${mailTo} (email not delivered)`);
-    }
-  } catch (error) {
+  const mailed = await sendOtpMail(mailTo, otp, { firstName: user.name, purpose }).catch((error) => {
     console.error('OTP email error:', error.message);
     if (process.env.NODE_ENV === 'production') {
       throw error;
     }
+    return false;
+  });
+
+  if (mailed) {
+    console.log(`OTP emailed to ${mailTo}`);
+  } else {
     console.log(`OTP generated for ${mailTo} (email not delivered)`);
   }
 
@@ -156,14 +169,14 @@ async function consumeOtp(user, otp) {
 }
 
 export async function buildAuthResponse(user, message = 'Login successful') {
-  await user.update({
+  const authorisedClientIds = await getAuthorisedClientIds(user);
+  const token = signToken(user, authorisedClientIds);
+
+  user.update({
     status: 'active',
     lastLogin: new Date(),
     failedAttempts: 0,
-  });
-
-  const authorisedClientIds = await getAuthorisedClientIds(user);
-  const token = signToken(user, authorisedClientIds);
+  }).catch((error) => console.error('Login metadata update failed:', error.message));
 
   return {
     success: true,
@@ -203,20 +216,6 @@ export async function signup(req, res, next) {
       });
     }
 
-    if (email) {
-      const existingEmail = await User.findOne({ where: { email } });
-      if (existingEmail) {
-        return res.status(409).json({ success: false, message: 'Email already registered' });
-      }
-    }
-
-    if (mobile) {
-      const existingMobile = await User.findOne({ where: { mobile } });
-      if (existingMobile) {
-        return res.status(409).json({ success: false, message: 'Mobile already registered' });
-      }
-    }
-
     if (!isStrongPassword(password)) {
       return res.status(400).json({ success: false, message: PASSWORD_RULE_MESSAGE });
     }
@@ -228,11 +227,21 @@ export async function signup(req, res, next) {
       return res.status(400).json({ success: false, message: 'Business name is required' });
     }
 
-    if (tenantId) {
-      const tenant = await Tenant.findByPk(tenantId);
-      if (!tenant || tenant.status !== 'active') {
-        return res.status(400).json({ success: false, message: 'Invalid tenant' });
-      }
+    const [existingEmail, existingMobile, invitedTenant, passwordHash] = await Promise.all([
+      email ? User.findOne({ where: { email }, attributes: ['id'] }) : null,
+      mobile ? User.findOne({ where: { mobile }, attributes: ['id'] }) : null,
+      tenantId ? Tenant.findByPk(tenantId, { attributes: ['id', 'status'] }) : null,
+      bcrypt.hash(password, PASSWORD_BCRYPT_ROUNDS),
+    ]);
+
+    if (existingEmail) {
+      return res.status(409).json({ success: false, message: 'Email already registered' });
+    }
+    if (existingMobile) {
+      return res.status(409).json({ success: false, message: 'Mobile already registered' });
+    }
+    if (tenantId && (!invitedTenant || invitedTenant.status !== 'active')) {
+      return res.status(400).json({ success: false, message: 'Invalid tenant' });
     }
 
     let workspaceTenantId = tenantId;
@@ -251,7 +260,6 @@ export async function signup(req, res, next) {
       role = 'direct_owner';
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
       email: email || `${mobile}@signup.local`,
@@ -498,7 +506,7 @@ export async function resetPassword(req, res, next) {
       });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, PASSWORD_BCRYPT_ROUNDS);
     await user.update({ passwordHash });
 
     return res.json(await buildAuthResponse(user, 'Password reset successful'));

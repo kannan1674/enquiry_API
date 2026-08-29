@@ -45,8 +45,21 @@ function toInboundEvent(message = {}) {
 }
 
 async function fetchLocalInboundMessages() {
-  await InboundMessage.sync();
   const rows = await InboundMessage.findAll({
+    attributes: [
+      'id',
+      'source',
+      'externalId',
+      'customerName',
+      'customerNumber',
+      'customerWaId',
+      'message',
+      'whatsappMessageId',
+      'phoneNumberId',
+      'adId',
+      'campaignId',
+      'rawPayload',
+    ],
     order: [['receivedAt', 'DESC']],
     limit: 200,
   });

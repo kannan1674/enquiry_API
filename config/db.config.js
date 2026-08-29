@@ -6,6 +6,7 @@ import { Sequelize } from 'sequelize';
 dns.setDefaultResultOrder('ipv4first');
 
 let sequelizeInstance = null;
+let connectPromise = null;
 
 export function getSequelize() {
   if (sequelizeInstance) {
@@ -47,9 +48,9 @@ export function getSequelize() {
       },
     },
     pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
+      max: 8,
+      min: 1,
+      acquire: 20000,
       idle: 10000,
     },
     define: {
@@ -64,32 +65,21 @@ export function getSequelize() {
 }
 
 export async function connectDatabase() {
-  const db = getSequelize();
-
-  await db.authenticate();
-
-  const {
-    Ad,
-    Enquiry,
-    InboundMessage,
-    MetaAppConfig,
-    UserMetaConnection,
-    TenantChannelAsset,
-  } = await import('../models/index.js');
-
-  await MetaAppConfig.sync();
-  await UserMetaConnection.sync();
-  await TenantChannelAsset.sync();
-  await Ad.sync();
-  await Enquiry.sync({ alter: true });
-
-  if (!process.env.VERCEL) {
-    await InboundMessage.sync();
+  if (connectPromise) {
+    return connectPromise;
   }
 
-  console.log('Database connected successfully');
+  connectPromise = (async () => {
+    const db = getSequelize();
+    await db.authenticate();
+    console.log('Database connected successfully');
+    return db;
+  })().catch((error) => {
+    connectPromise = null;
+    throw error;
+  });
 
-  return db;
+  return connectPromise;
 }
 
 export async function testDatabaseConnection() {

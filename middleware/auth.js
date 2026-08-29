@@ -21,43 +21,64 @@ function isPlatformAdmin(user) {
 }
 
 async function loadAuthorisedClientIds(user) {
+  if (!user) {
+    return [];
+  }
+
+  if (user.role === 'agency_super_admin') {
+    return [];
+  }
+
+  if (user.role === 'direct_owner' || CLIENT_ROLES.includes(user.role)) {
+    return user.tenantId ? [Number(user.tenantId)] : [];
+  }
+
+  if (Array.isArray(user.authorisedClientIds) && user.authorisedClientIds.length) {
+    return user.authorisedClientIds.map(Number);
+  }
+
   const fresh = await loadUserRecord(user);
   if (!fresh) {
     return [];
   }
 
-  if (isPlatformAdmin(fresh)) {
-    const tenants = await Tenant.findAll({
-      where: { status: 'active' },
-      attributes: ['id'],
-    });
-    return tenants.map((tenant) => tenant.id);
+  if (fresh.role === 'direct_owner' || CLIENT_ROLES.includes(fresh.role)) {
+    return fresh.tenantId ? [Number(fresh.tenantId)] : [];
   }
 
   if (AGENCY_ROLES.includes(fresh.role)) {
-    const owned = await Tenant.findAll({
-      where: { agencyOwnerUserId: fresh.id, status: 'active' },
-      attributes: ['id'],
-    });
-    const authorised = typeof fresh.getAuthorisedClients === 'function'
-      ? await fresh.getAuthorisedClients({ attributes: ['id'] })
-      : [];
-    const ids = new Set([...owned.map((tenant) => tenant.id), ...authorised.map((tenant) => tenant.id)]);
-    if (ids.size === 0 && fresh.role === 'agency_super_admin') {
-      const legacy = await Tenant.findAll({
-        where: { agencyOwnerUserId: null, accountType: 'agency_client', status: 'active' },
+    const [owned, authorised] = await Promise.all([
+      Tenant.findAll({
+        where: { agencyOwnerUserId: fresh.id, status: 'active' },
         attributes: ['id'],
-      });
-      legacy.forEach((tenant) => ids.add(tenant.id));
-    }
-    return [...ids];
+      }),
+      typeof fresh.getAuthorisedClients === 'function'
+        ? fresh.getAuthorisedClients({ attributes: ['id'] })
+        : [],
+    ]);
+    return [...new Set([
+      ...owned.map((tenant) => tenant.id),
+      ...authorised.map((tenant) => tenant.id),
+    ])];
   }
 
-  if (fresh.tenantId) {
-    return [Number(fresh.tenantId)];
-  }
+  return fresh.tenantId ? [Number(fresh.tenantId)] : [];
+}
 
-  return [];
+async function resolveAccessibleTenantIds(user) {
+  if (!user) {
+    return [];
+  }
+  if (user.role === 'agency_super_admin') {
+    return null;
+  }
+  if (user.role === 'direct_owner' || CLIENT_ROLES.includes(user.role)) {
+    return user.tenantId ? [Number(user.tenantId)] : [];
+  }
+  if (Array.isArray(user.authorisedClientIds) && user.authorisedClientIds.length) {
+    return user.authorisedClientIds.map(Number);
+  }
+  return loadAuthorisedClientIds(user);
 }
 
 function canAccessTenant(user, tenantId) {
@@ -108,12 +129,23 @@ function requireTenantAccess(param = 'tenantId') {
       return res.status(400).json({ success: false, message: 'Tenant is required' });
     }
 
+    if (req.user.role === 'agency_super_admin') {
+      req.tenantId = tenantId;
+      return next();
+    }
+
+    if (Number(req.user.tenantId) === tenantId) {
+      req.tenantId = tenantId;
+      return next();
+    }
+
+    if ((req.user.authorisedClientIds || []).includes(tenantId)) {
+      req.tenantId = tenantId;
+      return next();
+    }
+
     if (AGENCY_ROLES.includes(req.user.role) || req.user.role === 'direct_owner') {
-      const fresh = await User.findByPk(req.user.id);
-      if (!fresh) {
-        return res.status(401).json({ success: false, message: 'Authentication required' });
-      }
-      const ids = await loadAuthorisedClientIds(fresh);
+      const ids = await loadAuthorisedClientIds(req.user);
       if (!ids.includes(tenantId)) {
         return res.status(403).json({ success: false, message: 'Tenant access denied' });
       }
@@ -140,5 +172,6 @@ export {
   requireTenantAccess,
   canAccessTenant,
   loadAuthorisedClientIds,
+  resolveAccessibleTenantIds,
   isPlatformAdmin,
 };

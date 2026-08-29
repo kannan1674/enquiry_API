@@ -118,6 +118,18 @@ export default (sequelize, DataTypes) => {
           name: 'idx_inbound_status',
           fields: ['status'],
         },
+        {
+          name: 'idx_inbound_ad_id',
+          fields: ['ad_id'],
+        },
+        {
+          name: 'idx_inbound_tenant_received',
+          fields: ['tenant_id', 'received_at'],
+        },
+        {
+          name: 'idx_inbound_whatsapp_message',
+          fields: ['whatsapp_message_id'],
+        },
       ],
     },
   );

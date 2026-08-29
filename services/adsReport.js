@@ -1,6 +1,6 @@
 import { Op } from 'sequelize';
-import { Ad, InboundMessage, UserMetaConnection, User } from '../models/index.js';
-import { loadAuthorisedClientIds } from '../middleware/auth.js';
+import { Ad, InboundMessage, UserMetaConnection } from '../models/index.js';
+import { resolveAccessibleTenantIds } from '../middleware/auth.js';
 import { fetchAdInsights, fetchConnectedAds } from './metaGraph.js';
 import { loadMetaSettings } from './metaSettings.js';
 
@@ -47,29 +47,13 @@ export function resolveDateRange(query = {}) {
 }
 
 export async function accessibleTenantIds(user) {
-  if (user.role === 'agency_super_admin') {
-    return null;
-  }
-  if (user.role === 'agency_manager' || user.role === 'agency_agent') {
-    const fresh = await User.findByPk(user.id);
-    return loadAuthorisedClientIds(fresh);
-  }
-  return user.tenantId ? [Number(user.tenantId)] : [];
+  return resolveAccessibleTenantIds(user);
 }
 
-async function findAccessToken(user, tenantId) {
-  const where = { userId: user.id };
-  if (tenantId) {
-    const byTenant = await UserMetaConnection.findOne({
-      where: { userId: user.id, tenantId },
-      order: [['lastSyncedAt', 'DESC']],
-    });
-    if (byTenant?.accessToken) {
-      return byTenant.accessToken;
-    }
-  }
+async function findAccessToken(user) {
   const latest = await UserMetaConnection.findOne({
-    where,
+    where: { userId: user.id },
+    attributes: ['accessToken'],
     order: [['lastSyncedAt', 'DESC']],
   });
   return latest?.accessToken || null;
@@ -114,6 +98,7 @@ export async function buildAdsReport({ user, tenantId, adId, startDate, endDate 
 
   const messages = await InboundMessage.findAll({
     where: messageWhere,
+    attributes: ['adId', 'campaignId', 'customerWaId', 'customerNumber', 'receivedAt'],
     order: [['receivedAt', 'ASC']],
   });
 
@@ -149,8 +134,10 @@ export async function buildAdsReport({ user, tenantId, adId, startDate, endDate 
     }
   }
 
-  await loadMetaSettings();
-  const token = await findAccessToken(user, tenantId);
+  const token = await findAccessToken(user);
+  if (token) {
+    await loadMetaSettings();
+  }
   const metaAds = token
     ? await fetchConnectedAds(token, {
         since: range.startDate,
@@ -260,8 +247,6 @@ function runAmount(ad, range) {
 }
 
 async function loadLocalAds({ tenantId, allowedIds, adId, range }) {
-  await Ad.sync();
-
   const where = {};
   if (adId) {
     where.adId = String(adId);

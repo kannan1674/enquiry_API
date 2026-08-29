@@ -1,5 +1,5 @@
-import { Enquiry, Tenant, TenantChannelAsset, PipelineStage, User } from '../models/index.js';
-import { loadAuthorisedClientIds } from '../middleware/auth.js';
+import { Enquiry, Tenant, TenantChannelAsset, PipelineStage } from '../models/index.js';
+import { resolveAccessibleTenantIds } from '../middleware/auth.js';
 import { syncInboundMessages } from '../services/inboundSync.js';
 import {
   ENQUIRY_STATUSES,
@@ -15,16 +15,18 @@ function enquiryTimestamp(enquiry) {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
+const IST_FORMATTER = new Intl.DateTimeFormat('en-IN', {
+  timeZone: 'Asia/Kolkata',
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+});
+
 function formatIst(date) {
-  const parts = new Intl.DateTimeFormat('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  }).formatToParts(date);
+  const parts = IST_FORMATTER.formatToParts(date);
 
   const pick = (type) => parts.find((part) => part.type === type)?.value || '';
   const datePart = `${pick('day')} ${pick('month')} ${pick('year')}`;
@@ -67,16 +69,7 @@ function serializeEnquiry(enquiry, user = null) {
 }
 
 async function accessibleTenantIds(user) {
-  if (user.role === 'agency_super_admin') {
-    return null;
-  }
-
-  if (user.role === 'agency_manager' || user.role === 'agency_agent') {
-    const fresh = await User.findByPk(user.id);
-    return loadAuthorisedClientIds(fresh);
-  }
-
-  return user.tenantId ? [Number(user.tenantId)] : [];
+  return resolveAccessibleTenantIds(user);
 }
 
 async function listEnquiries(req, res, next) {
@@ -104,6 +97,18 @@ async function listEnquiries(req, res, next) {
 
     const items = await Enquiry.findAll({
       where,
+      attributes: [
+        'id',
+        'tenantId',
+        'channelType',
+        'contactName',
+        'contactPhone',
+        'contactEmail',
+        'message',
+        'status',
+        'createdAt',
+        'updatedAt',
+      ],
       include: [
         { model: Tenant, attributes: ['id', 'companyName', 'clientCode'] },
         { model: TenantChannelAsset, attributes: ['id', 'displayName', 'externalId', 'channelType'] },
@@ -166,8 +171,19 @@ async function updateEnquiryStatus(req, res, next) {
       });
     }
 
-    await Enquiry.sync({ alter: true });
     const enquiry = await Enquiry.findByPk(req.params.enquiryId, {
+      attributes: [
+        'id',
+        'tenantId',
+        'channelType',
+        'contactName',
+        'contactPhone',
+        'contactEmail',
+        'message',
+        'status',
+        'createdAt',
+        'updatedAt',
+      ],
       include: [
         { model: Tenant, attributes: ['id', 'companyName', 'clientCode'] },
         { model: TenantChannelAsset, attributes: ['id', 'displayName', 'externalId', 'channelType'] },
