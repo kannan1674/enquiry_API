@@ -75,32 +75,41 @@ export async function saveWhatsappWebhookMessages(body = {}) {
           ? new Date(Number(message.timestamp) * 1000)
           : new Date();
         const whatsappMessageId = message.id || '';
-
-        const defaults = {
-            clientId: tenantId,
-            tenantId,
-            source: 'whatsapp',
-            externalId: phoneNumberId || message.id,
-            customerName: contacts[0]?.profile?.name || '',
-            customerNumber: message.from || '',
-            customerWaId: message.from || null,
-            message: text,
-            whatsappMessageId,
-            status: 'new',
-            rawPayload: {
-              message,
-              referral: message.referral || null,
-              metadata: value.metadata || null,
-            },
-            metaBusinessId: asset?.metadata?.metaBusinessId || null,
-            wabaId: asset?.metadata?.wabaId || wabaId,
-            phoneNumberId,
-            adId: referral.adId,
-            campaignId: referral.campaignId,
-            referralSource: referral.referralSource,
-            receivedAt,
+        const payload = {
+          clientId: tenantId,
+          tenantId,
+          source: 'whatsapp',
+          externalId: phoneNumberId || message.id,
+          customerName: contacts[0]?.profile?.name || '',
+          customerNumber: message.from || '',
+          customerWaId: message.from || null,
+          message: text,
+          whatsappMessageId,
+          status: 'new',
+          rawPayload: {
+            message,
+            referral: message.referral || null,
+            metadata: value.metadata || null,
           },
-        });
+          metaBusinessId: asset?.metadata?.metaBusinessId || null,
+          wabaId: asset?.metadata?.wabaId || wabaId,
+          phoneNumberId,
+          adId: referral.adId,
+          campaignId: referral.campaignId,
+          referralSource: referral.referralSource,
+          receivedAt,
+        };
+
+        let record;
+        let created = true;
+        if (whatsappMessageId) {
+          [record, created] = await InboundMessage.findOrCreate({
+            where: { whatsappMessageId },
+            defaults: payload,
+          });
+        } else {
+          record = await InboundMessage.create(payload);
+        }
 
         if (created && phoneNumberId) {
           await routeInboundEvent({

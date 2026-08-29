@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { isAllowedOrigin } from './config/cors.js';
 import authRoutes from './routes/authRoutes.js';
 import metaRoutes from './routes/metaRoutes.js';
 import publicAgencyRoutes from './routes/publicAgencyRoutes.js';
@@ -9,38 +10,16 @@ import whatsappRoutes from './routes/whatsappRoutes.js';
 
 const app = express();
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  process.env.FRONTEND_URL,
-  ...(process.env.CORS_ORIGINS || '').split(','),
-]
-  .map((origin) => (typeof origin === 'string' ? origin.trim().replace(/\/$/, '') : ''))
-  .filter(Boolean);
-
-function isAllowedOrigin(origin) {
-  if (!origin) {
-    return true;
-  }
-  const normalized = origin.replace(/\/$/, '');
-  if (allowedOrigins.includes(normalized)) {
-    return true;
-  }
-  return /^https:\/\/enquiry-system-mu(-[a-z0-9-]+)?\.vercel\.app$/.test(normalized);
-}
-
 app.use(
   cors({
     origin(origin, callback) {
-      if (isAllowedOrigin(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error(`CORS blocked: ${origin}`));
+      callback(null, isAllowedOrigin(origin));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    maxAge: 86400,
+    optionsSuccessStatus: 204,
   }),
 );
 
