@@ -6,7 +6,6 @@ import * as pipelineController from '../controller/pipelineController.js';
 import * as assetController from '../controller/assetController.js';
 import * as quarantineController from '../controller/quarantineController.js';
 import * as enquiryController from '../controller/enquiryController.js';
-import * as metaController from '../controller/metaController.js';
 
 const router = express.Router();
 const tenantAccess = [authenticate, requireTenantAccess('tenantId')];
@@ -38,11 +37,5 @@ router.post('/quarantine/:id/dismiss', agencyAdmin, quarantineController.dismiss
 
 router.get('/enquiries', authenticate, enquiryController.listEnquiries);
 router.post('/enquiries/sync', authenticate, enquiryController.syncInbound);
-
-router.post('/meta/setup', authenticate, metaController.setupApp);
-router.get('/meta/status', authenticate, metaController.getStatus);
-router.get('/meta/connect-url', authenticate, metaController.getConnectUrl);
-router.post('/meta/complete', authenticate, metaController.completeLogin);
-router.post('/meta/sync', authenticate, metaController.syncConnection);
 
 export default router;

@@ -12,6 +12,7 @@ import defineQuarantinedInboundEvent from './quarantinedInboundEvent.js';
 import defineEnquiry from './enquiry.js';
 import defineUserMetaConnection from './userMetaConnection.js';
 import defineInboundMessage from './inboundMessage.js';
+import defineMetaAppConfig from './metaAppConfig.js';
 
 const sequelize = getSequelize();
 
@@ -27,6 +28,7 @@ export const QuarantinedInboundEvent = defineQuarantinedInboundEvent(sequelize, 
 export const Enquiry = defineEnquiry(sequelize, DataTypes);
 export const UserMetaConnection = defineUserMetaConnection(sequelize, DataTypes);
 export const InboundMessage = defineInboundMessage(sequelize, DataTypes);
+export const MetaAppConfig = defineMetaAppConfig(sequelize, DataTypes);
 
 const models = {
   Tenant,
@@ -41,6 +43,7 @@ const models = {
   Enquiry,
   UserMetaConnection,
   InboundMessage,
+  MetaAppConfig,
 };
 
 Object.values(models).forEach((model) => {

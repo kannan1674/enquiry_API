@@ -10,8 +10,12 @@ export default (sequelize, DataTypes) => {
       userId: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
-        unique: true,
         field: 'user_id',
+      },
+      tenantId: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+        field: 'tenant_id',
       },
       facebookUserId: {
         type: DataTypes.STRING(64),
@@ -46,6 +50,7 @@ export default (sequelize, DataTypes) => {
 
   UserMetaConnection.associate = (models) => {
     UserMetaConnection.belongsTo(models.User, { foreignKey: 'userId' });
+    UserMetaConnection.belongsTo(models.Tenant, { foreignKey: 'tenantId' });
   };
 
   return UserMetaConnection;

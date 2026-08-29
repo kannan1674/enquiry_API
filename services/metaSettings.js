@@ -1,56 +1,101 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { MetaAppConfig, UserMetaConnection, TenantChannelAsset } from '../models/index.js';
+import { decryptSecret, encryptSecret } from './metaCrypto.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+let settingsCache = null;
+let tablesReady = false;
 
-const SETTINGS_PATH = path.join(__dirname, '..', 'config', 'meta-app.json');
-
-function readStoredSettings() {
-  try {
-    if (!fs.existsSync(SETTINGS_PATH)) {
-      return {};
-    }
-    return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8')) || {};
-  } catch {
-    return {};
-  }
-}
-
-function metaSettings() {
-  const stored = readStoredSettings();
+function envSettings() {
   return {
-    appId: process.env.FACEBOOK_APP_ID || stored.appId || '',
-    appSecret: process.env.FACEBOOK_APP_SECRET || stored.appSecret || '',
-    configId: process.env.FACEBOOK_CONFIG_ID || stored.configId || '',
-    graphVersion: process.env.FACEBOOK_GRAPH_VERSION || stored.graphVersion || 'v21.0',
+    appId: String(process.env.FACEBOOK_APP_ID || '').trim(),
+    appSecret: String(process.env.FACEBOOK_APP_SECRET || '').trim(),
+    configId: String(process.env.FACEBOOK_CONFIG_ID || '').trim(),
+    graphVersion: String(process.env.META_GRAPH_VERSION || process.env.FACEBOOK_GRAPH_VERSION || 'v21.0').trim() || 'v21.0',
   };
 }
 
-function graphConfigured() {
+function mergeSettings(stored) {
+  const env = envSettings();
+  return {
+    appId: env.appId || stored?.appId || '',
+    appSecret: env.appSecret || stored?.appSecret || '',
+    configId: env.configId || stored?.configId || '',
+    graphVersion: stored?.graphVersion || env.graphVersion,
+  };
+}
+
+async function ensureTable() {
+  if (tablesReady) {
+    return;
+  }
+  await MetaAppConfig.sync();
+  await UserMetaConnection.sync({ alter: true });
+  await TenantChannelAsset.sync();
+  tablesReady = true;
+}
+
+export function metaSettings() {
+  return settingsCache || mergeSettings(null);
+}
+
+export function isAppConfigured() {
+  return Boolean(metaSettings().appId);
+}
+
+export function graphConfigured() {
   const settings = metaSettings();
   return Boolean(settings.appId && settings.appSecret);
 }
 
-function saveMetaSettings({ appId, appSecret, configId }) {
-  const current = readStoredSettings();
+export async function loadMetaSettings() {
+  await ensureTable();
+  const row = await MetaAppConfig.findOne({ order: [['id', 'DESC']] });
+  settingsCache = mergeSettings(
+    row
+      ? {
+          appId: row.appId,
+          appSecret: decryptSecret(row.appSecretEncrypted),
+          configId: row.configId || '',
+          graphVersion: row.graphVersion || envSettings().graphVersion,
+        }
+      : null,
+  );
+  return settingsCache;
+}
+
+export async function saveMetaSettings({ appId, appSecret, configId }) {
+  await ensureTable();
+  const current = await loadMetaSettings();
   const next = {
-    ...current,
-    appId: String(appId || '').trim() || current.appId || '',
-    appSecret: String(appSecret || '').trim() || current.appSecret || '',
+    appId: String(appId || '').trim() || current.appId,
+    appSecret: String(appSecret || '').trim() || current.appSecret,
     configId: String(configId || '').trim() || current.configId || '',
+    graphVersion: current.graphVersion || envSettings().graphVersion,
   };
-  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(next, null, 2));
+
+  const existing = await MetaAppConfig.findOne({ order: [['id', 'DESC']] });
+  const payload = {
+    appId: next.appId,
+    appSecretEncrypted: encryptSecret(next.appSecret),
+    configId: next.configId || null,
+    graphVersion: next.graphVersion,
+  };
+
+  if (existing) {
+    await existing.update(payload);
+  } else {
+    await MetaAppConfig.create(payload);
+  }
+
   process.env.FACEBOOK_APP_ID = next.appId;
   process.env.FACEBOOK_APP_SECRET = next.appSecret;
   if (next.configId) {
     process.env.FACEBOOK_CONFIG_ID = next.configId;
   }
-  return next;
-}
 
-export {
-  metaSettings,
-  graphConfigured,
-  saveMetaSettings,
-};
+  settingsCache = next;
+  return {
+    appId: next.appId,
+    configId: next.configId || null,
+    graphVersion: next.graphVersion,
+  };
+}

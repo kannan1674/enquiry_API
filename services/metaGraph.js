@@ -1,22 +1,30 @@
-import { metaSettings, graphConfigured } from './metaSettings.js';
+import { graphConfigured, metaSettings } from './metaSettings.js';
 
 function graphVersion() {
-  return metaSettings().graphVersion || 'v21.0';
+  return metaSettings().graphVersion || process.env.META_GRAPH_VERSION || 'v21.0';
 }
 
-const GRAPH_VERSION = graphVersion();
-const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
+function graphBase() {
+  return `https://graph.facebook.com/${graphVersion()}`;
+}
 
-function callbackUrl() {
-  const base = (process.env.BACKEND_PUBLIC_URL || `http://127.0.0.1:${process.env.PORT || 8000}`).replace(
-    /\/$/,
-    '',
-  );
+export function callbackUrl() {
+  const explicit = String(process.env.META_REDIRECT_URI || '').trim();
+  if (explicit) {
+    return explicit.replace(/\/$/, '');
+  }
+
+  const base = (
+    process.env.BACKEND_PUBLIC_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
+    || `http://127.0.0.1:${process.env.PORT || 8000}`
+  ).replace(/\/$/, '');
+
   return `${base}/api/meta/callback`;
 }
 
 async function graphGet(path, token, params = {}) {
-  const url = new URL(`${GRAPH_BASE}${path.startsWith('/') ? path : `/${path}`}`);
+  const url = new URL(`${graphBase()}${path.startsWith('/') ? path : `/${path}`}`);
   url.searchParams.set('access_token', token);
   Object.entries(params).forEach(([key, value]) => {
     if (value != null && value !== '') {
@@ -45,7 +53,7 @@ async function graphGetAll(path, token, params = {}) {
       break;
     }
     const parsed = new URL(nextUrl);
-    nextPath = parsed.pathname.replace(`/${GRAPH_VERSION}`, '') || parsed.pathname;
+    nextPath = parsed.pathname.replace(`/${graphVersion()}`, '') || parsed.pathname;
     nextParams = Object.fromEntries(parsed.searchParams.entries());
     delete nextParams.access_token;
   }
@@ -53,8 +61,8 @@ async function graphGetAll(path, token, params = {}) {
   return items;
 }
 
-async function exchangeJsSdkCode(code) {
-  const url = new URL(`${GRAPH_BASE}/oauth/access_token`);
+export async function exchangeJsSdkCode(code) {
+  const url = new URL(`${graphBase()}/oauth/access_token`);
   url.searchParams.set('client_id', metaSettings().appId);
   url.searchParams.set('client_secret', metaSettings().appSecret);
   url.searchParams.set('code', code);
@@ -67,8 +75,8 @@ async function exchangeJsSdkCode(code) {
   return data;
 }
 
-async function exchangeCodeForToken(code) {
-  const url = new URL(`${GRAPH_BASE}/oauth/access_token`);
+export async function exchangeCodeForToken(code) {
+  const url = new URL(`${graphBase()}/oauth/access_token`);
   url.searchParams.set('client_id', metaSettings().appId);
   url.searchParams.set('client_secret', metaSettings().appSecret);
   url.searchParams.set('redirect_uri', callbackUrl());
@@ -82,7 +90,7 @@ async function exchangeCodeForToken(code) {
   return data;
 }
 
-async function exchangeLongLivedToken(shortToken) {
+export async function exchangeLongLivedToken(shortToken) {
   try {
     const data = await graphGet('/oauth/access_token', shortToken, {
       grant_type: 'fb_exchange_token',
@@ -96,7 +104,7 @@ async function exchangeLongLivedToken(shortToken) {
   }
 }
 
-async function discoverBusinessAssets(accessToken) {
+export async function discoverBusinessAssets(accessToken) {
   const profile = await graphGet('/me', accessToken, { fields: 'id,name' });
   const assets = [];
 
@@ -166,8 +174,8 @@ async function discoverBusinessAssets(accessToken) {
   };
 }
 
-function buildAuthUrl(state) {
-  const url = new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`);
+export function buildAuthUrl(state) {
+  const url = new URL(`https://www.facebook.com/${graphVersion()}/dialog/oauth`);
   url.searchParams.set('client_id', metaSettings().appId);
   url.searchParams.set('redirect_uri', callbackUrl());
   url.searchParams.set('response_type', 'code');
@@ -193,12 +201,4 @@ function buildAuthUrl(state) {
   return url.toString();
 }
 
-export {
-  graphConfigured,
-  callbackUrl,
-  exchangeCodeForToken,
-  exchangeJsSdkCode,
-  exchangeLongLivedToken,
-  discoverBusinessAssets,
-  buildAuthUrl,
-};
+export { graphConfigured };

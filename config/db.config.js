@@ -68,8 +68,18 @@ export async function connectDatabase() {
 
   await db.authenticate();
 
+  const {
+    InboundMessage,
+    MetaAppConfig,
+    UserMetaConnection,
+    TenantChannelAsset,
+  } = await import('../models/index.js');
+
+  await MetaAppConfig.sync();
+  await UserMetaConnection.sync();
+  await TenantChannelAsset.sync();
+
   if (!process.env.VERCEL) {
-    const { InboundMessage } = await import('../models/index.js');
     await InboundMessage.sync();
   }
 

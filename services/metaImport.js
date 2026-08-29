@@ -93,9 +93,12 @@ async function saveConnectionAndImport({ userId, tenantId, accessToken, expiresI
   });
 
   const expiresAt = expiresIn ? new Date(Date.now() + Number(expiresIn) * 1000) : null;
-  const existing = await UserMetaConnection.findOne({ where: { userId } });
+  const existing = await UserMetaConnection.findOne({
+    where: { userId, tenantId },
+  }) || await UserMetaConnection.findOne({ where: { userId } });
   const payload = {
     userId,
+    tenantId,
     facebookUserId: discovered.facebookUserId,
     facebookName: discovered.facebookName,
     accessToken: longLived,
@@ -126,7 +129,14 @@ async function saveConnectionAndImport({ userId, tenantId, accessToken, expiresI
 
 async function syncStoredConnection(userPayload, requestedTenantId) {
   const userId = userPayload.id || userPayload.userId;
-  const connection = await UserMetaConnection.findOne({ where: { userId } });
+  const tenantIdHint = requestedTenantId ? Number(requestedTenantId) : null;
+  const connection = (tenantIdHint
+    ? await UserMetaConnection.findOne({ where: { userId, tenantId: tenantIdHint } })
+    : null)
+    || await UserMetaConnection.findOne({
+      where: { userId },
+      order: [['lastSyncedAt', 'DESC']],
+    });
   if (!connection) {
     throw Object.assign(new Error('Connect Facebook Business first'), { status: 400 });
   }

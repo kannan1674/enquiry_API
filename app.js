@@ -1,13 +1,43 @@
 import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/authRoutes.js';
+import metaRoutes from './routes/metaRoutes.js';
+import publicAgencyRoutes from './routes/publicAgencyRoutes.js';
 
 const app = express();
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  process.env.FRONTEND_URL,
+  ...(process.env.CORS_ORIGINS || '').split(','),
+]
+  .map((origin) => (typeof origin === 'string' ? origin.trim().replace(/\/$/, '') : ''))
+  .filter(Boolean);
+
+function isAllowedOrigin(origin) {
+  if (!origin) {
+    return true;
+  }
+  const normalized = origin.replace(/\/$/, '');
+  if (allowedOrigins.includes(normalized)) {
+    return true;
+  }
+  return /^https:\/\/enquiry-system-mu(-[a-z0-9-]+)?\.vercel\.app$/.test(normalized);
+}
+
 app.use(
   cors({
-    origin: true,
+    origin(origin, callback) {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked: ${origin}`));
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 );
 
@@ -29,6 +59,8 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/meta', metaRoutes);
+app.use('/api', publicAgencyRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({
@@ -40,7 +72,7 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error('APPLICATION ERROR:', err);
 
-  return res.status(500).json({
+  return res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Server error',
   });
