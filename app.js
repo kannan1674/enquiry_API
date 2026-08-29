@@ -5,29 +5,12 @@ const app = express();
 
 app.use(
   cors({
-    origin: [
-      'https://enquiry-system-mu.vercel.app',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-    ],
+    origin: true,
     credentials: true,
-    methods: [
-      'GET',
-      'POST',
-      'PUT',
-      'PATCH',
-      'DELETE',
-      'OPTIONS',
-    ],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-WhatsApp-Signature',
-    ],
   })
 );
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
@@ -44,19 +27,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Load AUTH normally
+// ONLY auth route for testing
 const authRoutes = require('./routes/authRoutes');
+
 app.use('/api/auth', authRoutes);
-
-// Load test route
-const testRoutes = require('./routes/testRoutes');
-app.use('/test', testRoutes);
-
-// Add the other routes only after auth works
-// const publicAgencyRoutes = require('./routes/publicAgencyRoutes');
-// const agencyRoutes = require('./routes/agencyRoutes');
-// const inboundMessageRoutes = require('./routes/inboundMessageRoutes');
-// const whatsappRoutes = require('./routes/whatsappRoutes');
 
 app.use((req, res) => {
   return res.status(404).json({
@@ -66,7 +40,7 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error('Application error:', err);
+  console.error('APP ERROR:', err);
 
   return res.status(500).json({
     success: false,
