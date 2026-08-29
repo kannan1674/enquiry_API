@@ -1,3 +1,4 @@
+import { InboundMessage } from '../models/index.js';
 import { routeInboundEvent } from './inboundRouter.js';
 
 const SOURCE_TO_CHANNEL = {
@@ -12,10 +13,7 @@ const SOURCE_TO_CHANNEL = {
 };
 
 function inboundMessagesUrl() {
-  return (process.env.INBOUND_MESSAGES_URL || 'https://ariome.duckdns.org/api/inbound-messages').replace(
-    /\/$/,
-    '',
-  );
+  return (process.env.INBOUND_MESSAGES_URL || '').replace(/\/$/, '');
 }
 
 function channelFromSource(source) {
@@ -23,43 +21,65 @@ function channelFromSource(source) {
 }
 
 function toInboundEvent(message = {}) {
-  const channelType = channelFromSource(message.source);
-  const externalAssetId = message.externalId || message.phoneNumberId || null;
+  const channelType = channelFromSource(message.source) || (message.phoneNumberId ? 'whatsapp' : null);
+  const externalAssetId = message.phoneNumberId || message.externalId || null;
   const rawPayload = message.rawPayload && typeof message.rawPayload === 'object' ? message.rawPayload : message;
 
   return {
     channelType,
     externalAssetId: externalAssetId ? String(externalAssetId) : null,
-    externalEventId: message.whatsappMessageId || message.externalEventId || message._id || null,
+    externalEventId: message.whatsappMessageId || message.externalEventId || message.id || null,
     contactName: message.customerName || null,
-    contactPhone: message.customerNumber || null,
+    contactPhone: message.customerNumber || message.customerWaId || null,
     message: message.message || null,
     payload: {
       ...rawPayload,
-      inboundId: message._id || null,
+      inboundId: message.id || null,
       contactName: message.customerName || null,
       contactPhone: message.customerNumber || null,
       message: message.message || null,
+      adId: message.adId || null,
+      campaignId: message.campaignId || null,
     },
   };
 }
 
-async function fetchInboundMessages() {
-  const response = await fetch(inboundMessagesUrl(), {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
+async function fetchLocalInboundMessages() {
+  await InboundMessage.sync();
+  const rows = await InboundMessage.findAll({
+    order: [['receivedAt', 'DESC']],
+    limit: 200,
   });
+  return rows.map((row) => row.toJSON());
+}
 
-  if (!response.ok) {
-    throw new Error(`Inbound messages request failed (${response.status})`);
+async function fetchRemoteInboundMessages() {
+  const url = inboundMessagesUrl();
+  if (!url) {
+    return [];
   }
 
-  const data = await response.json();
-  if (!data || data.success === false) {
-    throw new Error(data?.message || 'Inbound messages request failed');
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) {
+      return [];
+    }
+    const data = await response.json();
+    return Array.isArray(data.messages) ? data.messages : [];
+  } catch {
+    return [];
   }
+}
 
-  return Array.isArray(data.messages) ? data.messages : [];
+async function fetchInboundMessages() {
+  const local = await fetchLocalInboundMessages();
+  if (local.length) {
+    return local;
+  }
+  return fetchRemoteInboundMessages();
 }
 
 async function syncInboundMessages() {
@@ -93,7 +113,7 @@ async function syncInboundMessages() {
     }
 
     summary.results.push({
-      inboundId: message._id || null,
+      inboundId: message.id || message._id || null,
       channelType: event.channelType,
       externalAssetId: event.externalAssetId,
       ...result,

@@ -4,6 +4,8 @@ import authRoutes from './routes/authRoutes.js';
 import metaRoutes from './routes/metaRoutes.js';
 import publicAgencyRoutes from './routes/publicAgencyRoutes.js';
 import agencyRoutes from './routes/agencyRoutes.js';
+import inboundMessageRoutes from './routes/inboundMessageRoutes.js';
+import whatsappRoutes from './routes/whatsappRoutes.js';
 
 const app = express();
 
@@ -61,6 +63,9 @@ app.get('/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/meta', metaRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/inbound-messages', inboundMessageRoutes);
+app.use('/inbound-messages', inboundMessageRoutes);
 app.use('/api', publicAgencyRoutes);
 app.use('/api', agencyRoutes);
 

@@ -1,13 +1,17 @@
+import { handleMetaVerify } from '../services/metaVerify.js';
 import { saveWhatsappWebhookMessages } from '../services/whatsappInbound.js';
 
 export function verifyWebhook(req, res) {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
-  const expected = process.env.META_VERIFY_TOKEN || process.env.WHATSAPP_VERIFY_TOKEN;
+  const result = handleMetaVerify({
+    mode: req.query['hub.mode'],
+    token: req.query['hub.verify_token'],
+    challenge: req.query['hub.challenge'],
+  });
 
-  if (mode === 'subscribe' && expected && token === expected) {
-    return res.status(200).send(challenge);
+  if (result.ok) {
+    res.status(200);
+    res.set('Content-Type', 'text/plain');
+    return res.send(result.challenge);
   }
 
   return res.status(403).json({
