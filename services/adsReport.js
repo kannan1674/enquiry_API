@@ -67,33 +67,34 @@ export async function buildAdsReport({ user, tenantId, adId, startDate, endDate 
     throw Object.assign(new Error('Tenant access denied'), { status: 403 });
   }
 
-  const localAds = await loadLocalAds({ tenantId, allowedIds, adId, range }).catch(() => []);
-  const testAdIds = localAds
-    .filter((ad) => ad.isTest)
-    .map((ad) => String(ad.adId));
+  const [localAds, testAdIds] = await Promise.all([
+    loadLocalAds({ tenantId, allowedIds, adId, range }).catch(() => []),
+    loadTestAdIds().catch(() => []),
+  ]);
+
+  if (adId && testAdIds.includes(String(adId))) {
+    return emptyReport(range);
+  }
 
   const messageWhere = {
     receivedAt: {
       [Op.between]: [range.startAt, range.endAt],
     },
+    referralSource: { [Op.or]: [{ [Op.ne]: 'test_ad' }, { [Op.is]: null }] },
   };
   if (adId) {
     messageWhere.adId = String(adId);
+  } else if (testAdIds.length) {
+    messageWhere.adId = { [Op.or]: [{ [Op.notIn]: testAdIds }, { [Op.is]: null }] };
   }
 
-  const tenantOrTest = [];
   if (tenantId) {
-    tenantOrTest.push({ tenantId: Number(tenantId) });
-  } else if (allowedIds?.length) {
-    tenantOrTest.push({ tenantId: allowedIds });
-  }
-  if (testAdIds.length) {
-    tenantOrTest.push({ adId: testAdIds });
-  }
-  if (tenantOrTest.length && allowedIds !== null) {
-    messageWhere[Op.or] = tenantOrTest;
-  } else if (allowedIds && !allowedIds.length && !testAdIds.length) {
-    return emptyReport(range);
+    messageWhere.tenantId = Number(tenantId);
+  } else if (allowedIds) {
+    if (!allowedIds.length) {
+      return emptyReport(range);
+    }
+    messageWhere.tenantId = allowedIds;
   }
 
   const messages = await InboundMessage.findAll({
@@ -105,7 +106,7 @@ export async function buildAdsReport({ user, tenantId, adId, startDate, endDate 
   const grouped = new Map();
   for (const row of messages) {
     const id = row.adId ? String(row.adId) : '';
-    if (!id) {
+    if (!id || testAdIds.includes(id)) {
       continue;
     }
     if (!grouped.has(id)) {
@@ -146,7 +147,7 @@ export async function buildAdsReport({ user, tenantId, adId, startDate, endDate 
     : [];
 
   const adsById = new Map();
-  for (const metaAd of [...localAds, ...metaAds]) {
+  for (const metaAd of [...localAds.filter((ad) => !ad.isTest), ...metaAds]) {
     if (adId && String(metaAd.adId) !== String(adId)) {
       continue;
     }
@@ -246,21 +247,27 @@ function runAmount(ad, range) {
   return { amount: 0, amountType: null };
 }
 
+async function loadTestAdIds() {
+  const rows = await Ad.findAll({
+    where: { isTest: true },
+    attributes: ['adId'],
+  });
+  return rows.map((row) => String(row.adId));
+}
+
 async function loadLocalAds({ tenantId, allowedIds, adId, range }) {
-  const where = {};
+  const where = { isTest: false };
   if (adId) {
     where.adId = String(adId);
   }
 
-  // Seed/test ads are visible to every signed-in user.
-  if (allowedIds !== null || tenantId) {
-    const tenantFilter = [{ isTest: true }, { tenantId: null }];
-    if (tenantId) {
-      tenantFilter.push({ tenantId: Number(tenantId) });
-    } else if (allowedIds?.length) {
-      tenantFilter.push({ tenantId: allowedIds });
+  if (tenantId) {
+    where.tenantId = Number(tenantId);
+  } else if (allowedIds) {
+    if (!allowedIds.length) {
+      return [];
     }
-    where[Op.or] = tenantFilter;
+    where.tenantId = allowedIds;
   }
 
   const rows = await Ad.findAll({ where, order: [['id', 'ASC']] });
