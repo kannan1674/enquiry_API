@@ -504,41 +504,130 @@ const express = require('express');
 
 const router = express.Router();
 
+// Test whether auth router itself loads
 router.get('/test', (req, res) => {
   return res.status(200).json({
     success: true,
-    message: 'Auth router loaded successfully',
+    message: 'Auth router is working',
   });
 });
 
+// SIGN IN
 router.post('/signin', async (req, res, next) => {
   try {
     const controller = require('../controller/authController');
 
     if (typeof controller.signin !== 'function') {
       throw new Error(
-        'signin is not exported from authController.js'
+        `authController.signin is ${typeof controller.signin}, expected function`
       );
     }
 
     return await controller.signin(req, res, next);
   } catch (error) {
-    console.error('Signin controller load error:', error);
+    console.error('SIGNIN ERROR:', error);
     return next(error);
   }
 });
 
+// SIGN UP
 router.post('/signup', async (req, res, next) => {
   try {
     const controller = require('../controller/authController');
 
     if (typeof controller.signup !== 'function') {
       throw new Error(
-        'signup is not exported from authController.js'
+        `authController.signup is ${typeof controller.signup}, expected function`
       );
     }
 
     return await controller.signup(req, res, next);
+  } catch (error) {
+    console.error('SIGNUP ERROR:', error);
+    return next(error);
+  }
+});
+
+// SEND OTP
+router.post('/send-otp', async (req, res, next) => {
+  try {
+    const controller = require('../controller/authController');
+
+    if (typeof controller.sendOtp !== 'function') {
+      throw new Error(
+        `authController.sendOtp is ${typeof controller.sendOtp}, expected function`
+      );
+    }
+
+    return await controller.sendOtp(req, res, next);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// RESEND OTP
+router.post('/resend-otp', async (req, res, next) => {
+  try {
+    const controller = require('../controller/authController');
+
+    if (typeof controller.resendOtp !== 'function') {
+      throw new Error(
+        `authController.resendOtp is ${typeof controller.resendOtp}, expected function`
+      );
+    }
+
+    return await controller.resendOtp(req, res, next);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// VERIFY OTP
+router.post('/verify-otp', async (req, res, next) => {
+  try {
+    const controller = require('../controller/authController');
+
+    if (typeof controller.verifyOtp !== 'function') {
+      throw new Error(
+        `authController.verifyOtp is ${typeof controller.verifyOtp}, expected function`
+      );
+    }
+
+    return await controller.verifyOtp(req, res, next);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// FORGOT PASSWORD
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const controller = require('../controller/authController');
+
+    if (typeof controller.forgotPassword !== 'function') {
+      throw new Error(
+        `authController.forgotPassword is ${typeof controller.forgotPassword}, expected function`
+      );
+    }
+
+    return await controller.forgotPassword(req, res, next);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// RESET PASSWORD
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const controller = require('../controller/authController');
+
+    if (typeof controller.resetPassword !== 'function') {
+      throw new Error(
+        `authController.resetPassword is ${typeof controller.resetPassword}, expected function`
+      );
+    }
+
+    return await controller.resetPassword(req, res, next);
   } catch (error) {
     return next(error);
   }
