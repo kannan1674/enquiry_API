@@ -97,18 +97,7 @@ async function listEnquiries(req, res, next) {
 
     const items = await Enquiry.findAll({
       where,
-      attributes: [
-        'id',
-        'tenantId',
-        'channelType',
-        'contactName',
-        'contactPhone',
-        'contactEmail',
-        'message',
-        'status',
-        'createdAt',
-        'updatedAt',
-      ],
+      attributes: { exclude: ['payload'] },
       include: [
         { model: Tenant, attributes: ['id', 'companyName', 'clientCode'] },
         { model: TenantChannelAsset, attributes: ['id', 'displayName', 'externalId', 'channelType'] },
@@ -172,18 +161,7 @@ async function updateEnquiryStatus(req, res, next) {
     }
 
     const enquiry = await Enquiry.findByPk(req.params.enquiryId, {
-      attributes: [
-        'id',
-        'tenantId',
-        'channelType',
-        'contactName',
-        'contactPhone',
-        'contactEmail',
-        'message',
-        'status',
-        'createdAt',
-        'updatedAt',
-      ],
+      attributes: { exclude: ['payload'] },
       include: [
         { model: Tenant, attributes: ['id', 'companyName', 'clientCode'] },
         { model: TenantChannelAsset, attributes: ['id', 'displayName', 'externalId', 'channelType'] },
