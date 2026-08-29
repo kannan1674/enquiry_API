@@ -1,6 +1,12 @@
 import { Enquiry, Tenant, TenantChannelAsset, PipelineStage, User } from '../models/index.js';
 import { loadAuthorisedClientIds } from '../middleware/auth.js';
 import { syncInboundMessages } from '../services/inboundSync.js';
+import {
+  ENQUIRY_STATUSES,
+  canEditEnquiryStatus,
+  isValidEnquiryStatus,
+  statusLabel,
+} from '../services/enquiryStatus.js';
 
 function enquiryTimestamp(enquiry) {
   const raw = typeof enquiry.get === 'function' ? enquiry.get({ plain: true }) : enquiry;
@@ -32,8 +38,9 @@ function formatIst(date) {
   };
 }
 
-function serializeEnquiry(enquiry) {
+function serializeEnquiry(enquiry, user = null) {
   const timestamp = formatIst(enquiryTimestamp(enquiry));
+  const status = enquiry.status || 'open';
 
   return {
     id: enquiry.id,
@@ -45,7 +52,9 @@ function serializeEnquiry(enquiry) {
     contactPhone: enquiry.contactPhone,
     contactEmail: enquiry.contactEmail,
     message: enquiry.message,
-    status: enquiry.status,
+    status,
+    statusLabel: statusLabel(status),
+    canEditStatus: canEditEnquiryStatus(user, enquiry),
     assetName: enquiry.TenantChannelAsset?.displayName || null,
     assetExternalId: enquiry.TenantChannelAsset?.externalId || null,
     stageName: enquiry.PipelineStage?.name || null,
@@ -83,7 +92,12 @@ async function listEnquiries(req, res, next) {
       where.tenantId = tenantId;
     } else if (allowedIds) {
       if (allowedIds.length === 0) {
-        return res.json({ success: true, enquiries: [] });
+        return res.json({
+          success: true,
+          canEditStatus: canEditEnquiryStatus(req.user),
+          statuses: ENQUIRY_STATUSES,
+          enquiries: [],
+        });
       }
       where.tenantId = allowedIds;
     }
@@ -101,7 +115,9 @@ async function listEnquiries(req, res, next) {
 
     return res.json({
       success: true,
-      enquiries: items.map(serializeEnquiry),
+      canEditStatus: canEditEnquiryStatus(req.user),
+      statuses: ENQUIRY_STATUSES,
+      enquiries: items.map((item) => serializeEnquiry(item, req.user)),
     });
   } catch (error) {
     return next(error);
@@ -124,7 +140,70 @@ async function syncInbound(req, res, next) {
   }
 }
 
+async function listEnquiryStatuses(req, res) {
+  return res.json({
+    success: true,
+    canEditStatus: canEditEnquiryStatus(req.user),
+    statuses: ENQUIRY_STATUSES,
+  });
+}
+
+async function updateEnquiryStatus(req, res, next) {
+  try {
+    if (!canEditEnquiryStatus(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admin and business owner can change enquiry status',
+      });
+    }
+
+    const status = typeof req.body?.status === 'string' ? req.body.status.trim() : '';
+    if (!isValidEnquiryStatus(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Use one of: ${ENQUIRY_STATUSES.map((item) => item.value).join(', ')}`,
+        statuses: ENQUIRY_STATUSES,
+      });
+    }
+
+    await Enquiry.sync({ alter: true });
+    const enquiry = await Enquiry.findByPk(req.params.enquiryId, {
+      include: [
+        { model: Tenant, attributes: ['id', 'companyName', 'clientCode'] },
+        { model: TenantChannelAsset, attributes: ['id', 'displayName', 'externalId', 'channelType'] },
+        { model: PipelineStage, attributes: ['id', 'name'] },
+      ],
+    });
+
+    if (!enquiry) {
+      return res.status(404).json({ success: false, message: 'Enquiry not found' });
+    }
+
+    const allowedIds = await accessibleTenantIds(req.user);
+    if (allowedIds && !allowedIds.includes(Number(enquiry.tenantId))) {
+      return res.status(403).json({ success: false, message: 'Tenant access denied' });
+    }
+    if (!canEditEnquiryStatus(req.user, enquiry)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admin and business owner can change enquiry status',
+      });
+    }
+
+    await enquiry.update({ status });
+    return res.json({
+      success: true,
+      message: `Status updated to ${statusLabel(status)}`,
+      enquiry: serializeEnquiry(enquiry, req.user),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export {
   listEnquiries,
+  listEnquiryStatuses,
+  updateEnquiryStatus,
   syncInbound,
 };

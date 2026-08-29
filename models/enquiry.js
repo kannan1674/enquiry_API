@@ -61,7 +61,7 @@ export default (sequelize, DataTypes) => {
         allowNull: true,
       },
       status: {
-        type: DataTypes.ENUM('open', 'closed'),
+        type: DataTypes.STRING(32),
         allowNull: false,
         defaultValue: 'open',
       },

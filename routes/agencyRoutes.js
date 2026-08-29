@@ -38,6 +38,8 @@ router.post('/quarantine/:id/dismiss', agencyAdmin, quarantineController.dismiss
 
 router.get('/enquiries', authenticate, enquiryController.listEnquiries);
 router.post('/enquiries/sync', authenticate, enquiryController.syncInbound);
+router.get('/enquiries/statuses', authenticate, enquiryController.listEnquiryStatuses);
+router.patch('/enquiries/:enquiryId/status', authenticate, enquiryController.updateEnquiryStatus);
 
 router.get('/ads/report', authenticate, adsController.getAdsReport);
 router.get('/ads/:adId', authenticate, adsController.getAdReport);

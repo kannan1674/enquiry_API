@@ -70,6 +70,7 @@ export async function connectDatabase() {
 
   const {
     Ad,
+    Enquiry,
     InboundMessage,
     MetaAppConfig,
     UserMetaConnection,
@@ -80,6 +81,7 @@ export async function connectDatabase() {
   await UserMetaConnection.sync();
   await TenantChannelAsset.sync();
   await Ad.sync();
+  await Enquiry.sync({ alter: true });
 
   if (!process.env.VERCEL) {
     await InboundMessage.sync();
