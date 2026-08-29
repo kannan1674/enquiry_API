@@ -2,7 +2,39 @@ import { Enquiry, Tenant, TenantChannelAsset, PipelineStage, User } from '../mod
 import { loadAuthorisedClientIds } from '../middleware/auth.js';
 import { syncInboundMessages } from '../services/inboundSync.js';
 
+function enquiryTimestamp(enquiry) {
+  const raw = typeof enquiry.get === 'function' ? enquiry.get({ plain: true }) : enquiry;
+  const value = raw.createdAt || raw.created_at || raw.updatedAt || raw.updated_at;
+  const date = value instanceof Date ? value : value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function formatIst(date) {
+  const parts = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).formatToParts(date);
+
+  const pick = (type) => parts.find((part) => part.type === type)?.value || '';
+  const datePart = `${pick('day')} ${pick('month')} ${pick('year')}`;
+  const timePart = `${pick('hour')}:${pick('minute')} ${pick('dayPeriod')}`.trim();
+
+  return {
+    iso: date.toISOString(),
+    date: datePart,
+    time: timePart,
+    ist: `${datePart}, ${timePart} IST`,
+  };
+}
+
 function serializeEnquiry(enquiry) {
+  const timestamp = formatIst(enquiryTimestamp(enquiry));
+
   return {
     id: enquiry.id,
     tenantId: enquiry.tenantId,
@@ -17,7 +49,11 @@ function serializeEnquiry(enquiry) {
     assetName: enquiry.TenantChannelAsset?.displayName || null,
     assetExternalId: enquiry.TenantChannelAsset?.externalId || null,
     stageName: enquiry.PipelineStage?.name || null,
-    createdAt: enquiry.createdAt,
+    createdAt: timestamp.iso,
+    created_at: timestamp.iso,
+    createdAtIst: timestamp.ist,
+    date: timestamp.date,
+    time: timestamp.time,
   };
 }
 
