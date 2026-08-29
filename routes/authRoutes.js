@@ -11,6 +11,10 @@ import {
 
 const router = express.Router();
 
+router.get('/test', (req, res) => {
+  res.json({ success: true, message: 'Auth router is working' });
+});
+
 router.post('/signup', signup);
 router.post('/signin', signin);
 router.post('/send-otp', sendOtp);

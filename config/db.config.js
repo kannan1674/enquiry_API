@@ -1,5 +1,6 @@
 import './loadEnv.js';
 import dns from 'dns';
+import mysql2 from 'mysql2';
 import { Sequelize } from 'sequelize';
 
 dns.setDefaultResultOrder('ipv4first');
@@ -37,6 +38,7 @@ export function getSequelize() {
     host,
     port,
     dialect: 'mysql',
+    dialectModule: mysql2,
     logging: false,
     dialectOptions: {
       ssl: {
