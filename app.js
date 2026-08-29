@@ -44,9 +44,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-const authRoutes = require('./routes/authRoutes');
+//const authRoutes = require('./routes/authRoutes');
 
-app.use('/api/auth', authRoutes);
+//app.use('/api/auth', authRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({
