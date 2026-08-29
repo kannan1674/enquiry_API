@@ -204,4 +204,104 @@ export function buildAuthUrl(state) {
   return url.toString();
 }
 
+function fromMinorUnits(value) {
+  const raw = Number(value);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return 0;
+  }
+  return Number((raw / 100).toFixed(2));
+}
+
+function daysInclusive(since, until) {
+  if (!since || !until) {
+    return 1;
+  }
+  const start = new Date(`${since}T00:00:00+05:30`);
+  const end = new Date(`${until}T00:00:00+05:30`);
+  const diff = Math.round((end.getTime() - start.getTime()) / 86400000);
+  return Math.max(1, diff + 1);
+}
+
+export async function fetchConnectedAds(accessToken, { since, until } = {}) {
+  if (!accessToken) {
+    return [];
+  }
+
+  const accounts = await graphGetAll('/me/adaccounts', accessToken, {
+    fields: 'id,account_id,name,currency,account_status',
+  }).catch(() => []);
+
+  const ads = [];
+  for (const account of accounts) {
+    const actId = account.id || (account.account_id ? `act_${account.account_id}` : null);
+    if (!actId) {
+      continue;
+    }
+
+    const rows = await graphGetAll(`/${actId}/ads`, accessToken, {
+      fields: [
+        'id,name,effective_status,created_time',
+        'campaign{id,name,daily_budget,lifetime_budget}',
+        'adset{id,name,daily_budget,lifetime_budget}',
+      ].join(','),
+      limit: 200,
+    }).catch(() => []);
+
+    for (const ad of rows) {
+      const dailyBudget = fromMinorUnits(ad.adset?.daily_budget || ad.campaign?.daily_budget);
+      const lifetimeBudget = fromMinorUnits(ad.adset?.lifetime_budget || ad.campaign?.lifetime_budget);
+      ads.push({
+        adId: String(ad.id),
+        adName: ad.name || null,
+        campaignId: ad.campaign?.id || null,
+        campaignName: ad.campaign?.name || null,
+        amount: lifetimeBudget || Number((dailyBudget * daysInclusive(since, until)).toFixed(2)),
+        amountType: lifetimeBudget ? 'lifetime' : dailyBudget ? 'daily' : null,
+        dailyBudget,
+        lifetimeBudget,
+        currency: account.currency || 'INR',
+        status: ad.effective_status || null,
+        accountId: String(account.account_id || account.id),
+      });
+    }
+  }
+
+  return ads;
+}
+
+export async function fetchAdInsights(adId, accessToken, { since, until } = {}) {
+  if (!adId || !accessToken) {
+    return null;
+  }
+
+  const ad = await graphGet(`/${adId}`, accessToken, {
+    fields: [
+      'id,name,account_id',
+      'campaign{id,name,daily_budget,lifetime_budget}',
+      'adset{id,name,daily_budget,lifetime_budget,budget_remaining}',
+    ].join(','),
+  }).catch(() => null);
+
+  if (!ad) {
+    return null;
+  }
+
+  const dailyBudget = fromMinorUnits(ad.adset?.daily_budget || ad.campaign?.daily_budget);
+  const lifetimeBudget = fromMinorUnits(ad.adset?.lifetime_budget || ad.campaign?.lifetime_budget);
+  const amountType = lifetimeBudget ? 'lifetime' : dailyBudget ? 'daily' : null;
+  const amount = lifetimeBudget || Number((dailyBudget * daysInclusive(since, until)).toFixed(2));
+
+  return {
+    adId: String(adId),
+    adName: ad.name || null,
+    campaignId: ad.campaign?.id || null,
+    campaignName: ad.campaign?.name || null,
+    amount,
+    amountType,
+    dailyBudget,
+    lifetimeBudget,
+    currency: 'INR',
+  };
+}
+
 export { graphConfigured };

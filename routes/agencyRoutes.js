@@ -6,6 +6,7 @@ import * as pipelineController from '../controller/pipelineController.js';
 import * as assetController from '../controller/assetController.js';
 import * as quarantineController from '../controller/quarantineController.js';
 import * as enquiryController from '../controller/enquiryController.js';
+import * as adsController from '../controller/adsController.js';
 
 const router = express.Router();
 const tenantAccess = [authenticate, requireTenantAccess('tenantId')];
@@ -37,5 +38,8 @@ router.post('/quarantine/:id/dismiss', agencyAdmin, quarantineController.dismiss
 
 router.get('/enquiries', authenticate, enquiryController.listEnquiries);
 router.post('/enquiries/sync', authenticate, enquiryController.syncInbound);
+
+router.get('/ads/report', authenticate, adsController.getAdsReport);
+router.get('/ads/:adId', authenticate, adsController.getAdReport);
 
 export default router;
