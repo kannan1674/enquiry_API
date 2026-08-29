@@ -4,183 +4,94 @@ const { Sequelize } = require('sequelize');
 dns.setDefaultResultOrder('ipv4first');
 
 let sequelizeInstance = null;
-let connectionPromise = null;
 
-/**
- * Read DB configuration from environment variables.
- */
-function getDbSettings() {
-  return {
-    host: String(process.env.DB_HOST || '').trim(),
-    port: Number(process.env.DB_PORT || 3306),
-    user: String(process.env.DB_USER || '').trim(),
-    password: String(process.env.DB_PASSWORD || ''),
-    database: String(process.env.DB_NAME || '').trim(),
-
-    ssl:
-      String(process.env.DB_SSL || 'true')
-        .trim()
-        .toLowerCase() === 'true',
-  };
-}
-
-/**
- * Validate DB environment variables.
- */
-function validateDbSettings(settings) {
-  const missing = [];
-
-  if (!settings.host) {
-    missing.push('DB_HOST');
-  }
-
-  if (!settings.port || Number.isNaN(settings.port)) {
-    missing.push('DB_PORT');
-  }
-
-  if (!settings.user) {
-    missing.push('DB_USER');
-  }
-
-  if (!settings.password) {
-    missing.push('DB_PASSWORD');
-  }
-
-  if (!settings.database) {
-    missing.push('DB_NAME');
-  }
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing database environment variables: ${missing.join(', ')}`
-    );
-  }
-}
-
-/**
- * Create Sequelize instance only when it is actually needed.
- */
 function getSequelize() {
   if (sequelizeInstance) {
     return sequelizeInstance;
   }
 
-  const settings = getDbSettings();
+  const host = process.env.DB_HOST;
+  const port = Number(process.env.DB_PORT || 12862);
+  const username = process.env.DB_USER;
+  const password = process.env.DB_PASSWORD;
+  const database = process.env.DB_NAME;
 
-  validateDbSettings(settings);
+  if (!host) {
+    throw new Error('DB_HOST is not configured');
+  }
 
-  const options = {
-    host: settings.host,
-    port: settings.port,
+  if (!username) {
+    throw new Error('DB_USER is not configured');
+  }
 
-    dialect: 'mysql',
+  if (!password) {
+    throw new Error('DB_PASSWORD is not configured');
+  }
 
-    logging: false,
-
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000,
-    },
-
-    define: {
-      underscored: true,
-      timestamps: true,
-
-      createdAt: 'created_at',
-      updatedAt: 'updated_at',
-    },
-  };
-
-  // Aiven MySQL normally requires SSL
-  if (settings.ssl) {
-    options.dialectOptions = {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
-
-      connectTimeout: 30000,
-    };
+  if (!database) {
+    throw new Error('DB_NAME is not configured');
   }
 
   sequelizeInstance = new Sequelize(
-    settings.database,
-    settings.user,
-    settings.password,
-    options
+    database,
+    username,
+    password,
+    {
+      host,
+      port,
+
+      dialect: 'mysql',
+
+      logging: false,
+
+      dialectOptions: {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false,
+        },
+      },
+
+      pool: {
+        max: 5,
+        min: 0,
+        acquire: 30000,
+        idle: 10000,
+      },
+
+      define: {
+        underscored: true,
+        timestamps: true,
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      },
+    }
   );
 
   return sequelizeInstance;
 }
 
-/**
- * Connect/authenticate with the database.
- *
- * connectionPromise prevents multiple simultaneous
- * authenticate() calls during a Vercel cold start.
- */
 async function connectDatabase() {
   const sequelize = getSequelize();
 
-  if (!connectionPromise) {
-    connectionPromise = sequelize
-      .authenticate()
-      .then(() => {
-        console.log('Database connected successfully');
+  await sequelize.authenticate();
 
-        return sequelize;
-      })
-      .catch((error) => {
-        // Allow another connection attempt later
-        connectionPromise = null;
-
-        console.error('Database connection failed:', {
-          name: error.name,
-          message: error.message,
-
-          code:
-            error?.original?.code ||
-            error?.parent?.code ||
-            null,
-        });
-
-        throw error;
-      });
-  }
-
-  await connectionPromise;
+  console.log('Database connected successfully');
 
   return sequelize;
 }
 
-/**
- * Test database connection.
- */
 async function testDatabaseConnection() {
   return connectDatabase();
 }
 
-/**
- * Close connection.
- *
- * Usually you should NOT call this after every
- * Vercel request because connection reuse is useful.
- */
-async function closeDatabase() {
-  if (!sequelizeInstance) {
-    return;
-  }
-
-  try {
-    await sequelizeInstance.close();
-
-    console.log('Database connection closed');
-  } finally {
-    sequelizeInstance = null;
-    connectionPromise = null;
-  }
+function getDbSettings() {
+  return {
+    host: String(process.env.DB_HOST || '').trim(),
+    port: Number(process.env.DB_PORT || 12862),
+    user: String(process.env.DB_USER || '').trim(),
+    password: process.env.DB_PASSWORD || '',
+    database: String(process.env.DB_NAME || '').trim(),
+  };
 }
 
 module.exports = {
@@ -188,5 +99,4 @@ module.exports = {
   connectDatabase,
   testDatabaseConnection,
   getDbSettings,
-  closeDatabase,
 };
