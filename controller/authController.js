@@ -5,6 +5,19 @@ import { User, Otp, Tenant, PipelineStage } from '../models/index.js';
 import { sendOtpMail } from '../Email_Template/template.js';
 import { slugifyClientCode, seedDefaultPipeline } from '../services/tenantSetup.js';
 import { loadAuthorisedClientIds } from '../middleware/auth.js';
+import {
+  accessExpiresIn,
+  accessExpiresInSeconds,
+  consumeRefreshToken,
+  issueRefreshToken,
+  revokeRefreshToken,
+} from '../services/refreshTokens.js';
+import {
+  assertLoginAllowed,
+  clientIp,
+  recordLoginFailure,
+  recordLoginSuccess,
+} from '../services/loginRateLimit.js';
 
 const PASSWORD_RULE_MESSAGE =
   'Password must be 8–128 characters and include uppercase, lowercase, a number, and a special character.';
@@ -46,13 +59,14 @@ function generateOtp() {
 function signToken(user, authorisedClientIds) {
   return jwt.sign(
     {
+      typ: 'access',
       userId: user.id,
       role: user.role,
       tenantId: user.tenantId,
       authorisedClientIds,
     },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' },
+    { expiresIn: accessExpiresIn() },
   );
 }
 
@@ -168,9 +182,11 @@ async function consumeOtp(user, otp) {
   return { otpRecord };
 }
 
-export async function buildAuthResponse(user, message = 'Login successful') {
+export async function buildAuthResponse(user, message = 'Login successful', { refreshToken } = {}) {
   const authorisedClientIds = await getAuthorisedClientIds(user);
   const token = signToken(user, authorisedClientIds);
+  const nextRefreshToken = refreshToken || await issueRefreshToken(user.id);
+  const expiresIn = accessExpiresInSeconds();
 
   user.update({
     status: 'active',
@@ -182,6 +198,10 @@ export async function buildAuthResponse(user, message = 'Login successful') {
     success: true,
     message,
     token,
+    accessToken: token,
+    refreshToken: nextRefreshToken,
+    expiresIn,
+    tokenType: 'Bearer',
     user: {
       id: user.id,
       name: user.name,
@@ -290,8 +310,29 @@ export async function signup(req, res, next) {
   }
 }
 
+function sendRateLimit(res, error) {
+  if (error.retryAfter) {
+    res.set('Retry-After', String(error.retryAfter));
+  }
+  return res.status(error.status || 429).json({
+    success: false,
+    message: error.message,
+    retryAfter: error.retryAfter || 60,
+  });
+}
+
 export async function signin(req, res, next) {
   try {
+    const ip = clientIp(req);
+    try {
+      await assertLoginAllowed(ip);
+    } catch (error) {
+      if (error.status === 429) {
+        return sendRateLimit(res, error);
+      }
+      throw error;
+    }
+
     const identifier = normalizeIdentifier(req.body || {});
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
     if (!identifier) {
@@ -310,10 +351,19 @@ export async function signin(req, res, next) {
     const user = await findUser(identifier);
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found. Please signup',
-      });
+      try {
+        const limit = await recordLoginFailure(ip);
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password',
+          remainingAttempts: limit.remainingAttempts,
+        });
+      } catch (error) {
+        if (error.status === 429) {
+          return sendRateLimit(res, error);
+        }
+        throw error;
+      }
     }
 
     if (user.status === 'locked') {
@@ -333,11 +383,22 @@ export async function signin(req, res, next) {
     const matches = await bcrypt.compare(password, user.passwordHash);
     if (!matches) {
       await user.increment('failedAttempts');
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password',
-      });
+      try {
+        const limit = await recordLoginFailure(ip);
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password',
+          remainingAttempts: limit.remainingAttempts,
+        });
+      } catch (error) {
+        if (error.status === 429) {
+          return sendRateLimit(res, error);
+        }
+        throw error;
+      }
     }
+
+    await recordLoginSuccess(ip);
 
     if (user.status === 'inactive') {
       await issueOtp(user, identifier, 'verify');
@@ -510,6 +571,47 @@ export async function resetPassword(req, res, next) {
     await user.update({ passwordHash });
 
     return res.json(await buildAuthResponse(user, 'Password reset successful'));
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function refreshSession(req, res, next) {
+  try {
+    const raw = typeof req.body?.refreshToken === 'string' ? req.body.refreshToken.trim() : '';
+    if (!raw) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required',
+      });
+    }
+
+    const result = await consumeRefreshToken(raw);
+    if (result.error) {
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+      });
+    }
+
+    return res.json(await buildAuthResponse(result.user, 'Token refreshed', {
+      refreshToken: result.refreshToken,
+    }));
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function logout(req, res, next) {
+  try {
+    const raw = typeof req.body?.refreshToken === 'string' ? req.body.refreshToken.trim() : '';
+    if (raw) {
+      await revokeRefreshToken(raw);
+    }
+    return res.json({
+      success: true,
+      message: 'Logged out',
+    });
   } catch (error) {
     return next(error);
   }

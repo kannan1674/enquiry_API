@@ -99,6 +99,9 @@ function authenticate(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if (payload.typ && payload.typ !== 'access') {
+      return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    }
     req.user = {
       id: payload.userId,
       role: payload.role,

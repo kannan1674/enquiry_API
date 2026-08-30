@@ -79,6 +79,7 @@ export default (sequelize, DataTypes) => {
   User.associate = (models) => {
     User.belongsTo(models.Tenant, { foreignKey: 'tenantId' });
     User.hasMany(models.Otp, { foreignKey: 'userId' });
+    User.hasMany(models.RefreshToken, { foreignKey: 'userId' });
     User.hasOne(models.UserMetaConnection, { foreignKey: 'userId' });
     User.hasMany(models.TenantChannelAsset, { foreignKey: 'connectedByUserId', as: 'connectedAssets' });
     User.belongsToMany(models.Tenant, {

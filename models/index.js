@@ -14,6 +14,8 @@ import defineUserMetaConnection from './userMetaConnection.js';
 import defineInboundMessage from './inboundMessage.js';
 import defineMetaAppConfig from './metaAppConfig.js';
 import defineAd from './ad.js';
+import defineRefreshToken from './refreshToken.js';
+import defineLoginAttempt from './loginAttempt.js';
 
 const sequelize = getSequelize();
 
@@ -31,6 +33,8 @@ export const UserMetaConnection = defineUserMetaConnection(sequelize, DataTypes)
 export const InboundMessage = defineInboundMessage(sequelize, DataTypes);
 export const MetaAppConfig = defineMetaAppConfig(sequelize, DataTypes);
 export const Ad = defineAd(sequelize, DataTypes);
+export const RefreshToken = defineRefreshToken(sequelize, DataTypes);
+export const LoginAttempt = defineLoginAttempt(sequelize, DataTypes);
 
 const models = {
   Tenant,
@@ -47,6 +51,8 @@ const models = {
   InboundMessage,
   MetaAppConfig,
   Ad,
+  RefreshToken,
+  LoginAttempt,
 };
 
 Object.values(models).forEach((model) => {

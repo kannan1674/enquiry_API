@@ -9,6 +9,7 @@ import inboundMessageRoutes from './routes/inboundMessageRoutes.js';
 import whatsappRoutes from './routes/whatsappRoutes.js';
 
 const app = express();
+app.set('trust proxy', 1);
 
 app.use(
   cors({
@@ -58,9 +59,14 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error('APPLICATION ERROR:', err);
 
+  if (err.retryAfter) {
+    res.set('Retry-After', String(err.retryAfter));
+  }
+
   return res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Server error',
+    ...(err.retryAfter ? { retryAfter: err.retryAfter } : {}),
   });
 });
 
