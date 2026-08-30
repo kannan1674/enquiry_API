@@ -32,7 +32,11 @@ export function accessExpiresIn() {
 }
 
 export function accessExpiresInSeconds() {
-  return Math.max(60, Math.round(parseDurationMs(ACCESS_EXPIRES_IN, 15 * 60 * 1000) / 1000));
+  return Math.max(30, Math.round(parseDurationMs(ACCESS_EXPIRES_IN, 15 * 60 * 1000) / 1000));
+}
+
+export function accessExpiresAtIso() {
+  return new Date(Date.now() + accessExpiresInSeconds() * 1000).toISOString();
 }
 
 function refreshExpiresAt() {

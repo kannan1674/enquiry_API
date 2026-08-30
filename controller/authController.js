@@ -6,6 +6,7 @@ import { sendOtpMail } from '../Email_Template/template.js';
 import { slugifyClientCode, seedDefaultPipeline } from '../services/tenantSetup.js';
 import { loadAuthorisedClientIds } from '../middleware/auth.js';
 import {
+  accessExpiresAtIso,
   accessExpiresIn,
   accessExpiresInSeconds,
   consumeRefreshToken,
@@ -201,6 +202,7 @@ export async function buildAuthResponse(user, message = 'Login successful', { re
     accessToken: token,
     refreshToken: nextRefreshToken,
     expiresIn,
+    expiresAt: accessExpiresAtIso(),
     tokenType: 'Bearer',
     user: {
       id: user.id,
